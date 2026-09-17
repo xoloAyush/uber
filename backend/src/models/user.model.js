@@ -36,6 +36,9 @@ const userSchema = new mongoose.Schema({
         minlength: [6, "Password must be at least 6 characters long"],
         maxlength: [80, "Password must be at most 20 characters long"],
         select: false
+    },
+    socketId: {
+        type: String
     }
 });
 
