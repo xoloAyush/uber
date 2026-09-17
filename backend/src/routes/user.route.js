@@ -1,5 +1,6 @@
 import express from 'express'
-import { registerUser, loginUser } from '../controllers/user.controller.js';
+import { registerUser, loginUser, getProfile, logout } from '../controllers/user.controller.js';
+import { authUser } from '../middlewares/middleware.user.js';
 
 const router = express.Router()
 import { body } from 'express-validator';
@@ -18,5 +19,9 @@ router.post('/login', [
 
     body('password').trim().notEmpty().withMessage('Password is required').isLength({ min: 6, max: 80 }).withMessage('Password must be at least 6 characters long')
 ], loginUser)
+
+router.get('/profile', authUser, getProfile)
+
+router.post('/logout', authUser, logout)
 
 export default router

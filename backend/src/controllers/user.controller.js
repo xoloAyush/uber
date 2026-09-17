@@ -1,3 +1,4 @@
+import blacklistTokenModel from "../models/blacklistToken.model.js"
 import userModel from "../models/user.model.js"
 import { createUser } from "../services/user.service.js"
 import { validationResult } from 'express-validator'
@@ -114,4 +115,36 @@ export async function loginUser(req, res, next) {
 
     }
 
+}
+
+export async function getProfile(req, res, next) {
+    try {
+
+        return res.status(200).json({ user: req.user })
+
+    } catch (error) {
+        res.status(500).json({
+            message: error.message || "Internal server error"
+        })
+    }
+}
+
+export async function logout(req, res, next) {
+    try {
+
+        const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+        res.clearCookie('token')
+
+        await blacklistTokenModel.create({ token })
+
+        return res.status(200).json({
+            success: true,
+            message: "User logged out successfully"
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            message: error.message || "Internal server error"
+        })
+    }
 }
