@@ -41,10 +41,12 @@ export async function registerUser(req, res, next) {
             maxAge: 24 * 60 * 60 * 1000
         })
 
+        newUser.password = undefined
+
         res.status(201).json({
             success: true,
             message: "User created successfully",
-            data: newUser,
+            user: newUser,
             token
         })
 
@@ -103,7 +105,7 @@ export async function loginUser(req, res, next) {
         res.status(201).json({
             success: true,
             message: "User logged in successfully",
-            data: userExist,
+            user: userExist,
             token
         })
 

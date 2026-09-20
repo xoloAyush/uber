@@ -1,25 +1,46 @@
-import React, { useState } from 'react'
-import { Link } from 'react-router-dom'
+import React, { useState, useContext } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import axios from 'axios'
+import { toast } from 'react-toastify'
+import UserContext from '../context/userContext.jsx'
 
 const UserRegister = () => {
+
+    const navigate = useNavigate();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [firstname, setFirstname] = useState('');
     const [lastname, setLastname] = useState('');
-    const [user, setUser] = useState('')
 
-    const handleSignup = (e) => {
+    const { user, setUser} = React.useContext(UserContext);
+
+    const handleSignup = async (e) => {
         e.preventDefault();
 
-        setUser({
+        const newUser = {
+            fullname: { firstname, lastname },
             email: email,
-            password: password,
-            fullname: firstname + ' ' + lastname
-        })
+            password: password
+        }
 
-        console.log(user)
-        // toast.success('Login successful')
+        const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/user/register`, newUser)
+
+        if (response.status === 201) {
+            toast.success('Account created successfully')
+            setUser(response.data.user)
+
+            console.log(response.data.user)
+
+            navigate('/login')
+        } else {
+            toast.error(response.data.message)
+        }
+
+        setFirstname('');
+        setLastname('');
+        setEmail('');
+        setPassword('');
     }
 
 

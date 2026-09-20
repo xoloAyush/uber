@@ -1,7 +1,14 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useContext } from 'react';
+import { Link , useNavigate} from 'react-router-dom';
+import CaptainContext from '../context/captainContext.jsx';
+import { toast } from 'react-toastify'
+import axios from 'axios';
 
 const CaptainRegister = () => {
+
+    const navigate = useNavigate();
+
+    const {captain, setCaptain} = React.useContext(CaptainContext);
 
     const [formData, setFormData] = useState({
         fullname: {
@@ -28,7 +35,7 @@ const CaptainRegister = () => {
         }));
     };
 
-    const handleSignup = (e) => {
+    const handleSignup = async(e) => {
         e.preventDefault();
 
         const captainData = {
@@ -39,8 +46,39 @@ const CaptainRegister = () => {
             },
         };
 
-        console.log(captainData);
+        console.log("Captain data:", captainData);
+console.log("Capacity:", captainData.vehicle.capacity);
+console.log("Capacity type:", typeof captainData.vehicle.capacity);
+
+        axios.post(`${import.meta.env.VITE_BASE_URL}/captain/register`, captainData)
+            .then((response) => {
+                console.log(response.data);
+                setCaptain(response.data.captain);
+
+                setFormData({
+        fullname: {
+            firstname: '',
+            lastname: ''
+        },
+        email: '',
+        password: '',
+        status: 'active',
+        vehicle: {
+            color: '',
+            plate: '',
+            capacity: '',
+            vehicleType: 'car'
+        },
+    });
+
+                navigate('/captain-login');
+            })
+            .catch((error) => {
+                toast.error(response.data.message)
+            });
+
     };
+
 
     return (
         <div>
@@ -217,7 +255,7 @@ const CaptainRegister = () => {
                         <p className="text-gray-600 font-semibold">
                             Already have an account?{" "}
                             <Link
-                                to="/login"
+                                to="/captain-login"
                                 className="text-blue-700 font-semibold hover:text-blue-500"
                             >
                                 Login

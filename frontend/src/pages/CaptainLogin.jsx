@@ -1,22 +1,39 @@
-import { Link } from "react-router-dom"
-import { useState } from "react"
+import React, { useState, useContext } from 'react';
+import { Link , useNavigate} from 'react-router-dom';
+import CaptainContext from '../context/captainContext.jsx';
+import { toast } from 'react-toastify'
+import axios from 'axios';
 
 const CaptainLogin = () => {
 
+    const navigate = useNavigate();
+
+    const {captain, setCaptain} = React.useContext(CaptainContext);
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [captain, setCaptain] = useState('')
 
     const handleLogin = (e) => {
         e.preventDefault();
 
-        setCaptain({
+        const captainData = {
             email: email,
             password: password
-        })
+        }
+        axios.post(`${import.meta.env.VITE_BASE_URL}/captain/login`, captainData)
+                    .then((response) => {
+                        setCaptain(response.data.captain);
+                        localStorage.setItem('token', response.data.token);
+                        toast.success('Login successful');
+        
+                        navigate('/captain-home');
 
-        console.log(captain)
-        // toast.success('Login successful')
+                        setEmail('');
+                        setPassword('');
+                    })
+                    .catch((error) => {
+                        toast.error(response.data.message)
+                    });
     }
 
     return (

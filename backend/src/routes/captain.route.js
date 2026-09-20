@@ -1,7 +1,7 @@
-import { captainRegister, loginCaptain } from '../controllers/captain.controller.js';
+import { captainRegister, loginCaptain, getProfile, logout } from '../controllers/captain.controller.js';
 import express from 'express';
 import { body } from "express-validator"
-// import { authUser } from '../middlewares/middleware.captain.js';
+import { authUser } from '../middlewares/middleware.user.js';
 
 const router = express.Router();
 
@@ -18,7 +18,7 @@ router.post('/register', [
 
     body('vehicle.plate').trim().notEmpty().withMessage('Plate is required').isLength({ min: 3, max: 20 }).withMessage('Plate must be at least 3 characters long'),
 
-    body('vehicle.capacity').trim().notEmpty().withMessage('Capacity is required').isInt({ min: 3, max: 20 }).withMessage('Capacity must be at least 3 characters long'),
+    body('vehicle.capacity').isInt({ min: 1 }).withMessage('Capacity must be at least 1'),
 
     body('vehicle.vehicleType').trim().notEmpty().withMessage('Vehicle type is required').isLength({ min: 3, max: 20 }).withMessage('Vehicle type must be at least 3 characters long'),
 
@@ -29,5 +29,9 @@ router.post('/login', [
 
     body('password').trim().notEmpty().withMessage('Password is required').isLength({ min: 6, max: 80 }).withMessage('Password must be at least 6 characters long')
 ], loginCaptain)
+
+router.get('/profile',authUser, getProfile)
+
+router.post('/logout', authUser, logout)
 
 export default router;

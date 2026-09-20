@@ -1,22 +1,39 @@
-import { Link } from "react-router-dom"
-import { useState } from "react"
+import { Link, useNavigate } from "react-router-dom"
+import React,{ useState, useContext } from "react"
+import UserContext from '../context/userContext.jsx'
+import axios from "axios";
+import { toast } from 'react-toastify'
 
 const UserLogin = () => {
+    const navigate = useNavigate();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [user, setUser] = useState('')
+    
+    const { user, setUser} = React.useContext(UserContext);
 
-    const handleLogin = (e) => {
+    const handleLogin = async(e) => {
         e.preventDefault();
 
-        setUser({
+        const newUser = {
             email: email,
             password: password
-        })
+        };
 
-        console.log(user)
-        // toast.success('Login successful')
+        const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/user/login`, newUser)
+
+        if (response.status === 201) {
+            toast.success('Login successful')
+            setUser(response.data.user)
+            localStorage.setItem('token', response.data.token);
+            navigate('/home')
+
+        } else {
+            toast.error(response.data.message)
+        }
+
+        setEmail('');
+        setPassword('');
     }
 
     return (
@@ -27,7 +44,7 @@ const UserLogin = () => {
                     <img src="https://tb-static.uber.com/prod/udam-assets/e24f1914-1e23-4896-ad77-22e88c37c2f9.svg" alt="" />
                 </div>
 
-                <div className="p-4 md:w-1/2 bg-gray-200 py-14 rounded-lg shadow-lg flex flex-col gap-3  md:items-center ">
+                <div className="p-4 md:w-1/3  py-14 flex flex-col gap-3  md:items-center ">
 
                     <div className='md:flex md:justify-between md:items-center w-full flex-col'>
 

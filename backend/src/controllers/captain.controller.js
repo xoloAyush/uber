@@ -43,7 +43,7 @@ export async function captainRegister(req, res) {
         res.status(201).json({
             success: true,
             message: "Captain created successfully",
-            data: newCaptain,
+            captain: newCaptain,
             token
         })
 
@@ -101,7 +101,7 @@ export async function loginCaptain(req, res, next) {
         res.status(201).json({
             success: true,
             message: "Captain logged in successfully",
-            data: captainExist,
+            captain: captainExist,
             token
         })
 
@@ -114,3 +114,36 @@ export async function loginCaptain(req, res, next) {
     }
 
 }
+
+export async function getProfile(req, res, next) {
+    try {
+
+        return res.status(200).json({ user: req.user })
+
+    } catch (error) {
+        res.status(500).json({
+            message: error.message || "Internal server error"
+        })
+    }
+}
+
+export async function logout(req, res, next) {
+    try {
+
+        const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
+        res.clearCookie('token')
+
+        await blacklistTokenModel.create({ token })
+
+        return res.status(200).json({
+            success: true,
+            message: "User logged out successfully"
+        });
+
+    } catch (error) {
+        res.status(500).json({
+            message: error.message || "Internal server error"
+        })
+    }
+}
+
