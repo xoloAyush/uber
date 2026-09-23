@@ -6,6 +6,7 @@ import UserRegister from './pages/UserRegister'
 import CaptainLogin from './pages/CaptainLogin'
 import CaptainRegister from './pages/CaptainRegister'
 import Start from './pages/Start'
+import Riding from './pages/Riding'
 
 import UserContext from './context/userContext.jsx'
 import UserProtectWrapper from './pages/UserProtectWrapper.jsx'
@@ -15,9 +16,9 @@ import CaptainContext from './context/captainContext.jsx'
 
 const App = () => {
 
-  const {user,setUser} = React.useContext(UserContext);
+  const { user, setUser } = React.useContext(UserContext);
 
-  const {captain, setCaptain} = React.useContext(CaptainContext);
+  const { captain, setCaptain } = React.useContext(CaptainContext);
 
 
   console.log(user)
@@ -32,16 +33,18 @@ const App = () => {
       <Route path='/captain-login' element={<CaptainLogin />} />
       <Route path='/home' element={
         <UserProtectWrapper>
-              <Home />
-            </UserProtectWrapper>
-          } />
+          <Home />
+        </UserProtectWrapper>
+      } />
 
-          <Route path='/captain-home' element={
-          <CaptainProtectWrapper>
-            <CaptainHome />
-          </CaptainProtectWrapper>
+      <Route path='/captain-home' element={
+        <CaptainProtectWrapper>
+          <CaptainHome />
+        </CaptainProtectWrapper>
 
-        } />
+      } />
+
+      <Route path='/riding' element={<Riding />} />
     </Routes>
   )
 }
