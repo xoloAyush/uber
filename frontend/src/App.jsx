@@ -12,6 +12,7 @@ import UserContext from './context/userContext.jsx'
 import UserProtectWrapper from './pages/UserProtectWrapper.jsx'
 import CaptainProtectWrapper from './pages/CaptainProtectWrapper.jsx'
 import CaptainHome from './pages/CaptainHome.jsx'
+import CaptainRiding from './pages/CaptainRiding.jsx'
 import CaptainContext from './context/captainContext.jsx'
 
 const App = () => {
@@ -45,6 +46,7 @@ const App = () => {
       } />
 
       <Route path='/riding' element={<Riding />} />
+      <Route path="/captain-riding" element={<CaptainRiding />} />
     </Routes>
   )
 }
