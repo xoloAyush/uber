@@ -64,6 +64,11 @@ npm run dev
 | `GET` | `/maps/get-distance` | Protected | Get travel distance & duration between two locations |
 | `GET` | `/maps/get-auto-complete-suggestions` | Protected | Get autocomplete place suggestions for a search term |
 
+### Ride Endpoints
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `POST` | `/rides/create` | Protected | Create a new ride request and calculate fare |
+
 ---
 
 ## 📖 Detailed Endpoint Documentation
@@ -496,6 +501,82 @@ Returns place/address suggestions matching search input.
 
 ---
 
+## 🚕 Ride Management
+
+### 11. Create Ride
+Creates a new ride request, calculates vehicle-specific fare using distance & duration from Google Maps, generates a 6-digit OTP, and saves the ride in `pending` status.
+
+- **URL:** `/rides/create`
+- **Method:** `POST`
+- **Auth Required:** Yes (`authUser` middleware)
+- **Headers / Cookies:**
+  - Header: `Authorization: Bearer <token>`
+  - OR Cookie: `token=<jwt_token>`
+  - Header: `Content-Type: application/json`
+
+#### Validation Rules:
+- `pickup`: String, required, 3–200 characters.
+- `destination`: String, required, 3–200 characters.
+- `vehicleType`: String, required, 3–20 characters, supported values: `"auto"`, `"car"`, `"moto"`.
+
+#### Request Body:
+```json
+{
+  "pickup": "Connaught Place, New Delhi",
+  "destination": "Indira Gandhi International Airport, New Delhi",
+  "vehicleType": "car"
+}
+```
+
+#### Responses:
+- **`201 Created`** (Success)
+  ```json
+  {
+    "success": true,
+    "message": "Ride created successfully",
+    "data": {
+      "_id": "673f1a2b3c4d5e6f7a8b9c0d",
+      "user": "64f1a2b3c4d5e6f7a8b9c0d1",
+      "pickup": "Connaught Place, New Delhi",
+      "destination": "Indira Gandhi International Airport, New Delhi",
+      "vehicleType": "car",
+      "fare": 350,
+      "status": "pending"
+    }
+  }
+  ```
+
+- **`400 Bad Request`** (Validation failure)
+  ```json
+  {
+    "success": false,
+    "message": "Invalid input",
+    "errors": [
+      {
+        "msg": "Pickup must be at least 3 characters long",
+        "path": "pickup",
+        "location": "body"
+      }
+    ]
+  }
+  ```
+
+- **`401 Unauthorized`** (Missing or invalid auth token)
+  ```json
+  {
+    "message": "Unauthorized"
+  }
+  ```
+
+- **`500 Internal Server Error`** (Distance calculation or server failure)
+  ```json
+  {
+    "message": "No routes found"
+  }
+  ```
+
+---
+
 ## 🗄️ Database Models Summary
 
 ### User (`models/user.model.js`)
@@ -529,3 +610,17 @@ Returns place/address suggestions matching search input.
 ### BlacklistToken (`models/blacklistToken.model.js`)
 - `token`: `String` (required, trimmed)
 - `createdAt`: `Date` (default `Date.now`, expires in 1 day via MongoDB TTL)
+
+### Ride (`models/ride.model.js`)
+- `user`: `ObjectId` (ref: `'user'`, required)
+- `captain`: `ObjectId` (ref: `'captain'`)
+- `status`: `String` (enum: `['pending', 'accepted', 'ongoing', 'completed', 'cancelled']`, default: `'pending'`)
+- `pickup`: `String` (required)
+- `destination`: `String` (required)
+- `fare`: `Number` (required)
+- `distance`: `Number`
+- `duration`: `Number`
+- `paymentID`: `String`
+- `orderID`: `String`
+- `signature`: `String`
+- `otp`: `String` (required, `select: false`)
