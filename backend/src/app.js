@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 
 import userRoutes from './routes/user.route.js';
 import captainRoutes from './routes/captain.route.js';
-
+import mapRoutes from './routes/maps.routes.js';
 
 dns.setServers([
     '8.8.8.8',
@@ -28,6 +28,7 @@ app.use(cookieParser())
 
 app.use('/user', userRoutes);
 app.use('/captain', captainRoutes);
+app.use('/maps', mapRoutes);
 
 app.get('/', (req, res) => {
     res.send('Server is running');

@@ -13,6 +13,7 @@ Ensure the following variables are defined in your `backend/.env` file:
 PORT=3001
 MONGO_URI=mongodb://localhost:27017/uber
 JWT=your_super_secret_jwt_key
+GOOGLE_MAPS_API=your_google_maps_api_key
 ```
 
 ### Start the Server
@@ -55,6 +56,13 @@ npm run dev
 |---|---|---|---|
 | `POST` | `/captain/register` | Public | Register a new captain with vehicle details and return auth token |
 | `POST` | `/captain/login` | Public | Authenticate captain credentials and return auth token |
+
+### Maps Endpoints
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/maps/get-coordinates` | Protected | Get latitude & longitude coordinates for an address |
+| `GET` | `/maps/get-distance` | Protected | Get travel distance & duration between two locations |
+| `GET` | `/maps/get-auto-complete-suggestions` | Protected | Get autocomplete place suggestions for a search term |
 
 ---
 
@@ -422,6 +430,68 @@ Authenticates an existing captain using email and password, issues a fresh JWT, 
   {
     "message": "Password must be at least 6 characters long"
   }
+  ```
+
+---
+
+## 🗺️ Maps Endpoints
+
+All maps endpoints require authentication via `authUser` middleware (`token` cookie or `Authorization: Bearer <token>`) and use Google Maps APIs via `GOOGLE_MAPS_API`.
+
+### 8. Get Coordinates
+Converts an address into latitude and longitude coordinates.
+
+- **URL:** `/maps/get-coordinates`
+- **Method:** `GET`
+- **Auth Required:** Yes
+- **Query Params:**
+  - `address` (string, min 3 chars, required)
+- **Response (`200 OK`):**
+  ```json
+  {
+    "latitude": 28.6139391,
+    "longitude": 77.2090212
+  }
+  ```
+
+---
+
+### 9. Get Distance & Time
+Calculates travel distance and duration between an origin and destination.
+
+- **URL:** `/maps/get-distance`
+- **Method:** `GET`
+- **Auth Required:** Yes
+- **Query Params:**
+  - `origin` (string, required)
+  - `destination` (string, required)
+- **Response (`200 OK`):**
+  ```json
+  {
+    "distance": { "text": "15 km", "value": 15000 },
+    "duration": { "text": "30 mins", "value": 1800 },
+    "status": "OK"
+  }
+  ```
+
+---
+
+### 10. Get Autocomplete Suggestions
+Returns place/address suggestions matching search input.
+
+- **URL:** `/maps/get-auto-complete-suggestions`
+- **Method:** `GET`
+- **Auth Required:** Yes
+- **Query Params:**
+  - `input` (string, min 3 chars, required)
+- **Response (`200 OK`):**
+  ```json
+  [
+    {
+      "description": "Connaught Place, New Delhi, Delhi, India",
+      "place_id": "ChIJb_xV8K39DDkR..."
+    }
+  ]
   ```
 
 ---
