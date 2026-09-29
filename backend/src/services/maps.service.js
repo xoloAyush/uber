@@ -110,6 +110,10 @@ export const getAutoCompleteSuggestion = async (input) => {
             return response.data.predictions;
         }
 
+        if (response.data.status === "ZERO_RESULTS") {
+            return [];
+        }
+
         throw new Error(
             `Google Places API error: ${response.data.status} ${response.data.error_message || ""
             }`

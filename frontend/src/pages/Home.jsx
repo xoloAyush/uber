@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import 'remixicon/fonts/remixicon.css'
@@ -7,16 +7,22 @@ import VehiclePanel from "../components/VehiclePanel";
 import ConfirmRidePanel from '../components/ConfirmRidePanel'
 import LookingforDriver from "../components/LookingforDriver";
 import WaitingforDriver from "../components/WaitingforDriver";
+import axios from 'axios'
 
 const Home = () => {
 
     const [pickup, setPickup] = useState('')
     const [destination, setDestination] = useState('')
+    const [suggestions, setSuggestions] = useState([]);
+    const [activeInput, setActiveInput] = useState(null);
+
     const [panelOpen, setPanelOpen] = useState(false)
     const [vehiclePanelOpen, setVehiclePanelOpen] = useState(false)
     const [confirmRidePanel, setConfirmRidePanel] = useState(false)
     const [confirmRideData, setConfirmRideData] = useState('')
+
     const [location, setLocation] = useState('')
+
     const [vehicleFound, setVehicleFound] = useState(false)
     const [waitingForDriver, setWaitingForDriver] = useState(false)
 
@@ -31,6 +37,9 @@ const Home = () => {
         e.preventDefault();
 
         console.log("Form submitted");
+
+        setVehiclePanelOpen(true);
+        setPanelOpen(false);
     }
 
     console.log(confirmRidePanel)
@@ -137,7 +146,36 @@ const Home = () => {
         }
     }, [waitingForDriver]);
 
+    const getSuggestions = async (input) => {
+        if (input.trim().length < 2) {
+            setSuggestions([]);
+            return;
+        }
 
+        try {
+            const token = localStorage.getItem('token');
+            const response = await axios.get(
+                `${import.meta.env.VITE_BASE_URL}/maps/get-auto-complete-suggestions`,
+                {
+                    params: { input },
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    },
+                    withCredentials: true
+                }
+            );
+
+            console.log("Suggestions:", response.data);
+            setSuggestions(response.data);
+
+        } catch (error) {
+            console.error(
+                "Autocomplete error:",
+                error.response?.data || error.message
+            );
+            setSuggestions([]);
+        }
+    };
 
     return (
         <div className="w-full h-screen flex md:flex-col relative overflow-y-hidden">
@@ -167,16 +205,35 @@ const Home = () => {
                             placeholder="Pickup location"
                             className="p-3 px-7 rounded-md bg-gray-300 border-2 border-transparent focus:border-yellow-500 focus:outline-none"
                             value={pickup}
-                            onChange={(e) => { e.target.value }}
-                            onClick={() => { setPanelOpen(true) }}
+                            onChange={(e) => {
+                                setPickup(e.target.value);
+                                setActiveInput("pickup");
+                                setPanelOpen(true);
+                                getSuggestions(e.target.value);
+                            }}
+                            onClick={() => {
+                                setActiveInput("pickup");
+                                setPanelOpen(true);
+                            }}
                         />
                         <input type='text' placeholder="Dropoff location" className="p-3 rounded-md px-7  bg-gray-300 border-2 border-transparent focus:border-yellow-500 focus:outline-none"
                             value={destination}
-                            onChange={(e) => { e.target.value }}
-                            onClick={() => { setPanelOpen(true) }}
+                            onChange={(e) => {
+                                setDestination(e.target.value);
+                                setActiveInput("destination");
+                                setPanelOpen(true);
+                                getSuggestions(e.target.value);
+                            }}
+                            onClick={() => {
+                                setActiveInput("destination");
+                                setPanelOpen(true);
+                            }}
                         />
 
-                        <button className="bg-black text-white font-bold p-3 rounded-md cursor-pointer hover:bg-gray-900">Search</button>
+                        <button className="bg-black text-white font-bold p-3 rounded-md cursor-pointer hover:bg-gray-900" onClick={(e) => {
+
+                            submitHandler(e);
+                        }}>Search</button>
 
                     </form>
 
@@ -184,8 +241,17 @@ const Home = () => {
                 </div>
 
                 <div ref={panelRef} className="md:w-[35vw] md:h-[60vh] h-[0vh] p-6 bg-gray-100 mb-10">
-                    <LocationSearchPanel setPanelOpen={setPanelOpen} vehiclePanelOpen={vehiclePanelOpen} setVehiclePanelOpen={setVehiclePanelOpen}
-                        location={location} setLocation={setLocation} />
+                    <LocationSearchPanel
+                        setPanelOpen={setPanelOpen}
+                        setVehiclePanelOpen={setVehiclePanelOpen}
+                        suggestions={suggestions}
+                        setSuggestions={setSuggestions}
+                        activeInput={activeInput}
+                        pickup={pickup}
+                        destination={destination}
+                        setPickup={setPickup}
+                        setDestination={setDestination}
+                    />
                 </div>
             </div>
 

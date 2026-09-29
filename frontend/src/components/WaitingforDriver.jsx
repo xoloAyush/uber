@@ -117,7 +117,7 @@ const WaitingforDriver = (props) => {
                     </p>
 
                     <p className="text-sm text-gray-600 mt-1">
-                        <i class="ri-map-pin-line"></i> {props.location}
+                        <i className="ri-map-pin-line"></i> {props.location}
                     </p>
                 </div>
             </div>

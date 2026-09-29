@@ -19,7 +19,7 @@ router.get('/get-distance',
 )
 
 router.get('/get-auto-complete-suggestions',
-    query('input').isString().isLength({ min: 3 }),
+    query('input').isString().isLength({ min: 1 }),
     authUser,
     getAutoCompleteSuggestions
 )

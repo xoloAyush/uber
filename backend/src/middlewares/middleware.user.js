@@ -5,30 +5,35 @@ export const authUser = async (req, res, next) => {
 
     try {
 
-        const cookieToken = req.cookies.token;
+        const cookieToken = req.cookies?.token;
         const bearerToken = req.headers.authorization?.split(' ')[1];
 
-        const cookie = cookieToken || bearerToken
+        const token = bearerToken || cookieToken;
 
-        if (!cookie) {
+        if (!token) {
             return res.status(401).json({ message: 'Unauthorized' });
         }
 
-        const isBlacklisted = await blackListTokenModel.findOne({ token: cookie });
+        const isBlacklisted = await blackListTokenModel.findOne({ token });
 
         if (isBlacklisted) {
             return res.status(401).json({ message: 'Unauthorized' });
         }
 
-        const decode = jwt.verify(cookie, process.env.JWT)
-        req.user = decode._id
+        const decode = jwt.verify(token, process.env.JWT);
+        req.user = decode._id;
 
-        next()
+        next();
 
     } catch (error) {
+        if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+            return res.status(401).json({
+                message: 'Unauthorized: Invalid or expired token'
+            });
+        }
         res.status(500).json({
             message: error.message || "Internal server error"
-        })
+        });
     }
 
-}
+}
