@@ -1,130 +1,256 @@
 # Uber Clone - Backend API Documentation
 
-A RESTful API built with **Node.js**, **Express.js**, and **MongoDB (Mongoose)** for user & captain authentication and profile management.
+A scalable, secure RESTful API built with **Node.js**, **Express.js**, and **MongoDB (Mongoose)** powering the Uber clone application. Includes dual authentication for passengers and captains (drivers), Google Maps integration (geocoding, distance matrix, and autocomplete), dynamic fare calculation, and ride request management.
+
+---
+
+## 📑 Table of Contents
+
+- [Tech Stack](#-tech-stack)
+- [Project Architecture](#-project-architecture)
+- [Getting Started](#-getting-started)
+  - [Prerequisites & Environment Variables](#prerequisites--environment-variables)
+  - [Installation & Running](#installation--running)
+- [Authentication & Security](#-authentication--security)
+  - [Token Storage & Transmission](#token-storage--transmission)
+  - [Token Blacklisting](#token-blacklisting)
+  - [Auth Middleware (`authUser`)](#auth-middleware-authuser)
+- [Fare Calculation Formula](#-fare-calculation-formula)
+- [Endpoints Summary](#-endpoints-summary)
+- [Detailed API Reference](#-detailed-api-reference)
+  - [1. Health Check](#1-health-check)
+  - [2. User Endpoints (`/user`)](#2-user-endpoints-user)
+    - [POST /user/register](#post-userregister)
+    - [POST /user/login](#post-userlogin)
+    - [GET /user/profile](#get-userprofile)
+    - [POST /user/logout](#post-userlogout)
+  - [3. Captain Endpoints (`/captain`)](#3-captain-endpoints-captain)
+    - [POST /captain/register](#post-captainregister)
+    - [POST /captain/login](#post-captainlogin)
+    - [GET /captain/profile](#get-captainprofile)
+    - [POST /captain/logout](#post-captainlogout)
+  - [4. Maps Endpoints (`/maps`)](#4-maps-endpoints-maps)
+    - [GET /maps/get-coordinates](#get-mapsget-coordinates)
+    - [GET /maps/get-distance](#get-mapsget-distance)
+    - [GET /maps/get-auto-complete-suggestions](#get-mapsget-auto-complete-suggestions)
+  - [5. Ride Endpoints (`/rides`)](#5-ride-endpoints-rides)
+    - [GET /rides/get-fare](#get-ridesget-fare)
+    - [POST /rides/create](#post-ridescreate)
+- [Data Models](#-data-models)
+  - [User Model](#user-model)
+  - [Captain Model](#captain-model)
+  - [Ride Model](#ride-model)
+  - [BlacklistToken Model](#blacklisttoken-model)
+
+---
+
+## 🛠️ Tech Stack
+
+- **Runtime:** Node.js (ES Modules)
+- **Framework:** Express.js (v5)
+- **Database:** MongoDB via Mongoose (v9)
+- **Authentication:** JSON Web Tokens (`jsonwebtoken`), Password Hashing (`bcrypt`)
+- **Validation:** `express-validator`
+- **External APIs:** Google Maps API (Geocoding API, Distance Matrix API, Places Autocomplete API) via `axios`
+- **HTTP Utilities:** `cookie-parser`, `cors`, `dotenv`
+- **WebSockets:** `socket.io`
+
+---
+
+## 📁 Project Architecture
+
+```text
+backend/
+├── .env                          # Local environment variables
+├── package.json                  # Dependencies & scripts
+├── server.js                     # HTTP server entrypoint (port listening)
+└── src/
+    ├── app.js                    # Express app configuration, CORS, routes & DNS setup
+    ├── controllers/
+    │   ├── captain.controller.js # Captain register, login, profile, logout
+    │   ├── maps.controller.js    # Coordinates, distance, autocomplete handlers
+    │   ├── ride.controller.js    # Create ride & get fare handlers
+    │   └── user.controller.js    # User register, login, profile, logout
+    ├── db/
+    │   └── db.js                 # Mongoose connection logic
+    ├── middlewares/
+    │   └── middleware.user.js    # authUser JWT & blacklist verification middleware
+    ├── models/
+    │   ├── blacklistToken.model.js # Revoked JWTs with 24h TTL
+    │   ├── captain.model.js      # Captain schema & methods
+    │   ├── ride.model.js         # Ride booking schema
+    │   └── user.model.js         # User schema & methods
+    ├── routes/
+    │   ├── captain.route.js      # /captain routes & express-validator rules
+    │   ├── maps.routes.js        # /maps routes & express-validator rules
+    │   ├── ride.route.js         # /rides routes & express-validator rules
+    │   └── user.route.js         # /user routes & express-validator rules
+    └── services/
+        ├── captain.service.js    # Captain creation service
+        ├── maps.service.js       # Google Maps API service
+        ├── ride.service.js       # Ride creation, OTP generation & fare computation
+        └── user.service.js       # User creation service
+```
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites & Environment Variables
-Ensure the following variables are defined in your `backend/.env` file:
+
+Create a `.env` file in the `backend/` root directory:
 
 ```env
-PORT=3001
-MONGO_URI=mongodb://localhost:27017/uber
+PORT=3000
+MONGO_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/uber
 JWT=your_super_secret_jwt_key
-GOOGLE_MAPS_API=your_google_maps_api_key
+GOOGLE_MAPS_API=AIzaSyYourGoogleMapsApiKey
 ```
 
-### Start the Server
+> **Note on Google Maps API:** Your API key must have the following Google Cloud APIs enabled:
+> 1. **Geocoding API**
+> 2. **Distance Matrix API**
+> 3. **Places API (New or Legacy Place Autocomplete)**
+
+### Installation & Running
+
 ```bash
+# Navigate to backend directory
+cd backend
+
 # Install dependencies
 npm install
 
-# Start in development mode (with nodemon)
+# Run development server with nodemon
 npm run dev
 ```
 
-- **Base URL:** `http://localhost:3001`
+- **Base URL:** `http://localhost:3000` (or the configured `PORT`)
+- **CORS Allowed Origin:** `http://localhost:5173` with credentials (`withCredentials: true`)
 
 ---
 
-## 🔐 Authentication Overview
+## 🔐 Authentication & Security
 
-- **Token Type:** JSON Web Token (JWT) signed with secret key `process.env.JWT`.
-- **Token Validity:** 24 hours (`expiresIn: "24h"`).
-- **Delivery Methods:** The backend supports dual token extraction in protected routes:
-  1. **HTTP-only Cookie:** `token` (automatically set on registration and login with `httpOnly: true`, `secure: true`, `sameSite: "strict"`, `maxAge: 24h`).
+### Token Storage & Transmission
+- **Token Type:** JSON Web Token (JWT) signed with `process.env.JWT`.
+- **Token Expiration:** 24 hours (`expiresIn: "24h"`).
+- **Dual Extraction:** Protected endpoints accept authentication via either:
+  1. **HTTP-only Cookie:** `token` (automatically set on registration & login with `httpOnly: true`, `secure: true`, `sameSite: "strict"`, `maxAge: 24h`).
   2. **Authorization Header:** `Authorization: Bearer <token>`
-- **Token Revocation / Blacklisting:** When logging out, the token is stored in the `blacklistToken` MongoDB collection with a 1-day TTL index to prevent reuse.
+
+### Token Blacklisting
+Upon calling `/user/logout` or `/captain/logout`, the current token is inserted into the `blacklistTokens` collection with a 1-day MongoDB TTL index (`expires: "1d"`). Once blacklisted, subsequent requests using this token are rejected.
+
+### Auth Middleware (`authUser`)
+Located in `src/middlewares/middleware.user.js`:
+1. Extracts token from `req.cookies.token` or `req.headers.authorization`.
+2. Rejects with `401 Unauthorized` if token is missing.
+3. Checks `blacklistToken` collection; rejects with `401 Unauthorized` if blacklisted.
+4. Verifies JWT signature using `process.env.JWT`.
+5. If invalid or expired, catches `JsonWebTokenError` / `TokenExpiredError` and responds with `401 Unauthorized: Invalid or expired token`.
+6. Attaches `decode._id` to `req.user` and passes control to the next handler.
 
 ---
 
-## 📋 Endpoints Overview
+## 💰 Fare Calculation Formula
 
-### General & User Endpoints
+Ride fares are calculated dynamically using Google Distance Matrix API based on distance (km) and travel duration (minutes):
+
+$$\text{Fare} = \text{Base Fare} + (\text{Distance in km} \times \text{Per-Km Rate}) + (\text{Duration in minutes} \times \text{Per-Minute Rate})$$
+
+| Vehicle Type | Base Fare (₹) | Rate / Km (₹) | Rate / Minute (₹) |
+| :--- | :---: | :---: | :---: |
+| **auto** | 20 | 5 | 0.5 |
+| **car** | 35 | 8 | 1.0 |
+| **moto** | 15 | 4 | 0.5 |
+
+*Fares are rounded to the nearest integer using `Math.round()`.*
+
+---
+
+## 📋 Endpoints Summary
+
+### General
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
 | `GET` | `/` | Public | Server health check |
-| `POST` | `/user/register` | Public | Register a new user and return auth token |
-| `POST` | `/user/login` | Public | Authenticate user credentials and return auth token |
-| `GET` | `/user/profile` | Protected | Fetch the authenticated user's profile |
-| `POST` | `/user/logout` | Protected | Logout user, clear cookie, and blacklist token |
 
-### Captain Endpoints
+### User Endpoints (`/user`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/captain/register` | Public | Register a new captain with vehicle details and return auth token |
-| `POST` | `/captain/login` | Public | Authenticate captain credentials and return auth token |
+| `POST` | `/user/register` | Public | Register new user, hash password, return token & cookie |
+| `POST` | `/user/login` | Public | Authenticate user, return token & set cookie |
+| `GET` | `/user/profile` | Protected | Get authenticated user ID (`req.user`) |
+| `POST` | `/user/logout` | Protected | Clear auth cookie and blacklist token |
 
-### Maps Endpoints
+### Captain Endpoints (`/captain`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/maps/get-coordinates` | Protected | Get latitude & longitude coordinates for an address |
-| `GET` | `/maps/get-distance` | Protected | Get travel distance & duration between two locations |
-| `GET` | `/maps/get-auto-complete-suggestions` | Protected | Get autocomplete place suggestions for a search term |
+| `POST` | `/captain/register` | Public | Register new captain with vehicle, return token & cookie |
+| `POST` | `/captain/login` | Public | Authenticate captain, return token & set cookie |
+| `GET` | `/captain/profile` | Protected | Get authenticated captain ID (`req.user`) |
+| `POST` | `/captain/logout` | Protected | Clear auth cookie and blacklist token |
 
-### Ride Endpoints
+### Maps Endpoints (`/maps`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/rides/create` | Protected | Create a new ride request and calculate fare |
+| `GET` | `/maps/get-coordinates` | Protected | Get latitude & longitude for an address string |
+| `GET` | `/maps/get-distance` | Protected | Get distance & duration between origin and destination |
+| `GET` | `/maps/get-auto-complete-suggestions` | Protected | Get autocomplete suggestions for search query |
+
+### Ride Endpoints (`/rides`)
+| Method | Endpoint | Access | Description |
+|---|---|---|---|
+| `GET` | `/rides/get-fare` | Protected | Get calculated fares for auto, car, and moto |
+| `POST` | `/rides/create` | Protected | Create ride booking with 6-digit OTP & pending status |
 
 ---
 
-## 📖 Detailed Endpoint Documentation
+## 📖 Detailed API Reference
 
 ### 1. Health Check
+
+#### GET `/`
 Checks if the backend server is running.
 
-- **URL:** `/`
-- **Method:** `GET`
-- **Auth Required:** No
-
-#### Response:
-- **Status:** `200 OK`
-- **Body:**
+- **Access:** Public
+- **Response `200 OK`:**
   ```text
   Server is running
   ```
 
 ---
 
-## 👤 User Authentication
+### 2. User Endpoints (`/user`)
 
-### 2. User Registration
-Registers a new user account, securely hashes the password with bcrypt, generates an auth token, and sets an HTTP-only cookie.
+#### POST `/user/register`
+Creates a new passenger account, generates password hash with bcrypt, sets HTTP-only cookie, and returns user details with auth token.
 
-- **URL:** `/user/register`
-- **Method:** `POST`
-- **Auth Required:** No
-- **Headers:** `Content-Type: application/json`
-
-#### Validation Rules:
-- `fullname.firstname`: String, required, 3–20 characters.
-- `fullname.lastname`: String, required by user service, 3–20 characters if provided.
-- `email`: String, required, valid email format, 5–30 characters, must be unique.
-- `password`: String, required, minimum 6 characters (max 80).
-
-#### Request Body:
-```json
-{
-  "fullname": {
-    "firstname": "John",
-    "lastname": "Doe"
-  },
-  "email": "john.doe@example.com",
-  "password": "secretpassword"
-}
-```
-
-#### Responses:
-- **`201 Created`** (Success)
+- **Access:** Public
+- **Validation Rules:**
+  - `fullname.firstname`: Required, string, 3–20 characters.
+  - `fullname.lastname`: Optional in schema (max 20 characters).
+  - `email`: Required, valid email format, 5–30 characters, must be unique.
+  - `password`: Required, min 6 characters (max 80).
+- **Request Body:**
+  ```json
+  {
+    "fullname": {
+      "firstname": "John",
+      "lastname": "Doe"
+    },
+    "email": "john.doe@example.com",
+    "password": "securePassword123"
+  }
+  ```
+- **Response `201 Created`:**
   ```json
   {
     "success": true,
     "message": "User created successfully",
-    "data": {
-      "_id": "64f1a2b3c4d5e6f7a8b9c0d1",
+    "user": {
+      "_id": "674ef1a2b3c4d5e6f7a8b901",
       "fullname": {
         "firstname": "John",
         "lastname": "Doe"
@@ -134,53 +260,33 @@ Registers a new user account, securely hashes the password with bcrypt, generate
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
   ```
-  *Sets HTTP-only cookie: `token=<jwt_token>`*
-
-- **`409 Conflict`** (User already exists)
-  ```json
-  {
-    "success": false,
-    "message": "User already exists"
-  }
-  ```
-
-- **`500 Internal Server Error`** (Validation failure or server error)
-  ```json
-  {
-    "message": "First name must be at least 3 characters long"
-  }
-  ```
+- **Error Responses:**
+  - `409 Conflict`: `{"success": false, "message": "User already exists"}`
+  - `500 Internal Server Error`: `{"message": "First name must be at least 3 characters long"}`
 
 ---
 
-### 3. User Login
-Authenticates an existing user with email and password, issues a fresh JWT, and sets an HTTP-only cookie.
+#### POST `/user/login`
+Authenticates an existing user via email and password, creates a 24h JWT, and sets an HTTP-only cookie.
 
-- **URL:** `/user/login`
-- **Method:** `POST`
-- **Auth Required:** No
-- **Headers:** `Content-Type: application/json`
-
-#### Validation Rules:
-- `email`: String, required, valid email, 5–30 characters.
-- `password`: String, required, 6–80 characters.
-
-#### Request Body:
-```json
-{
-  "email": "john.doe@example.com",
-  "password": "secretpassword"
-}
-```
-
-#### Responses:
-- **`201 Created`** (Success)
+- **Access:** Public
+- **Validation Rules:**
+  - `email`: Required, valid email, 5–30 characters.
+  - `password`: Required, 6–80 characters.
+- **Request Body:**
+  ```json
+  {
+    "email": "john.doe@example.com",
+    "password": "securePassword123"
+  }
+  ```
+- **Response `201 Created`:**
   ```json
   {
     "success": true,
     "message": "User logged in successfully",
-    "data": {
-      "_id": "64f1a2b3c4d5e6f7a8b9c0d1",
+    "user": {
+      "_id": "674ef1a2b3c4d5e6f7a8b901",
       "fullname": {
         "firstname": "John",
         "lastname": "Doe"
@@ -190,159 +296,95 @@ Authenticates an existing user with email and password, issues a fresh JWT, and 
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
   ```
-  *Sets HTTP-only cookie: `token=<jwt_token>`*
-
-- **`400 Bad Request`** (Email not found)
-  ```json
-  {
-    "success": false,
-    "message": "Invalid email or password"
-  }
-  ```
-
-- **`401 Unauthorized`** (Password mismatch)
-  ```json
-  {
-    "success": false,
-    "message": "Invalid email or password"
-  }
-  ```
-
-- **`500 Internal Server Error`** (Validation or server error)
-  ```json
-  {
-    "message": "Password must be at least 6 characters long"
-  }
-  ```
+- **Error Responses:**
+  - `400 Bad Request`: `{"success": false, "message": "Invalid email or password"}`
+  - `401 Unauthorized`: `{"success": false, "message": "Invalid email or password"}`
 
 ---
 
-### 4. Get User Profile
-Fetches the authenticated user profile information.
+#### GET `/user/profile`
+Fetches the currently authenticated user ID from the decoded JWT.
 
-- **URL:** `/user/profile`
-- **Method:** `GET`
-- **Auth Required:** Yes (`authUser` middleware)
+- **Access:** Protected (`authUser` middleware)
 - **Headers / Cookies:**
-  - Header: `Authorization: Bearer <token>`
-  - OR Cookie: `token=<jwt_token>`
-
-#### Middleware Verification:
-1. Extracts token from Cookie or `Authorization` header.
-2. Checks MongoDB `blacklistToken` collection to verify the token is not revoked.
-3. Decodes JWT using secret key `process.env.JWT`.
-4. Attaches user ID (`decode._id`) to `req.user`.
-
-#### Responses:
-- **`200 OK`** (Success)
+  - `Authorization: Bearer <token>` OR `Cookie: token=<token>`
+- **Response `200 OK`:**
   ```json
   {
-    "user": "64f1a2b3c4d5e6f7a8b9c0d1"
+    "user": "674ef1a2b3c4d5e6f7a8b901"
   }
   ```
-
-- **`401 Unauthorized`** (Missing or blacklisted token)
-  ```json
-  {
-    "message": "Unauthorized"
-  }
-  ```
-
-- **`500 Internal Server Error`** (Invalid / expired token or server error)
-  ```json
-  {
-    "message": "jwt expired"
-  }
-  ```
+- **Error Responses:**
+  - `401 Unauthorized`: `{"message": "Unauthorized"}` or `{"message": "Unauthorized: Invalid or expired token"}`
 
 ---
 
-### 5. User Logout
-Logs out the user by clearing the client cookie and saving the current JWT into the token blacklist with automatic 24-hour expiration.
+#### POST `/user/logout`
+Logs out user by clearing the `token` cookie and saving the JWT into the blacklist collection.
 
-- **URL:** `/user/logout`
-- **Method:** `POST`
-- **Auth Required:** Yes (`authUser` middleware)
+- **Access:** Protected (`authUser` middleware)
 - **Headers / Cookies:**
-  - Header: `Authorization: Bearer <token>`
-  - OR Cookie: `token=<jwt_token>`
-
-#### Responses:
-- **`200 OK`** (Success)
+  - `Authorization: Bearer <token>` OR `Cookie: token=<token>`
+- **Response `200 OK`:**
   ```json
   {
     "success": true,
     "message": "User logged out successfully"
   }
   ```
-  *Clears `token` cookie and inserts token into `blacklistTokens` collection.*
-
-- **`401 Unauthorized`** (Missing token or already blacklisted)
-  ```json
-  {
-    "message": "Unauthorized"
-  }
-  ```
 
 ---
 
-## 🚗 Captain Authentication
+### 3. Captain Endpoints (`/captain`)
 
-### 6. Captain Registration
-Registers a new captain (driver) account along with vehicle specifications, hashes the password using bcrypt, generates an auth token, and sets an HTTP-only cookie.
+#### POST `/captain/register`
+Registers a new captain (driver) account with vehicle details.
 
-- **URL:** `/captain/register`
-- **Method:** `POST`
-- **Auth Required:** No
-- **Headers:** `Content-Type: application/json`
-
-#### Validation Rules:
-- `fullname.firstname`: String, required, 3–20 characters.
-- `fullname.lastname`: String, required by captain service, 3–20 characters if provided.
-- `email`: String, required, valid email format, 5–30 characters, must be unique.
-- `password`: String, required, minimum 6 characters (max 80).
-- `status`: String, required, 3–20 characters (e.g., `"active"`, `"inactive"`).
-- `vehicle.color`: String, required, 3–20 characters.
-- `vehicle.plate`: String, required, 3–20 characters.
-- `vehicle.capacity`: Integer, required, 3–20.
-- `vehicle.vehicleType`: String, required, 3–20 characters, allowed values: `"car"`, `"motorcycle"`, `"auto"`.
-
-#### Request Body:
-```json
-{
-  "fullname": {
-    "firstname": "Jane",
-    "lastname": "Doe"
-  },
-  "email": "jane.doe@example.com",
-  "password": "secretpassword",
-  "status": "inactive",
-  "vehicle": {
-    "color": "Black",
-    "plate": "DL01AB1234",
-    "capacity": 4,
-    "vehicleType": "car"
+- **Access:** Public
+- **Validation Rules:**
+  - `fullname.firstname`: Required, string, 3–20 characters.
+  - `fullname.lastname`: Optional (max 20 characters).
+  - `email`: Required, valid email format, 5–30 characters, must be unique.
+  - `password`: Required, min 6 characters (max 80).
+  - `status`: Required, string, 3–20 characters (schema default: `'inactive'`, enum: `['active', 'inactive']`).
+  - `vehicle.color`: Required, min 3 characters.
+  - `vehicle.plate`: Required, min 3 characters.
+  - `vehicle.capacity`: Required, integer, min 1.
+  - `vehicle.vehicleType`: Required, enum: `['car', 'motorcycle', 'auto']`.
+- **Request Body:**
+  ```json
+  {
+    "fullname": {
+      "firstname": "Alex",
+      "lastname": "Driver"
+    },
+    "email": "alex.driver@example.com",
+    "password": "driverSecret123",
+    "status": "inactive",
+    "vehicle": {
+      "color": "White",
+      "plate": "DL 01 AB 9876",
+      "capacity": 4,
+      "vehicleType": "car"
+    }
   }
-}
-```
-
-#### Responses:
-- **`201 Created`** (Success)
+  ```
+- **Response `201 Created`:**
   ```json
   {
     "success": true,
     "message": "Captain created successfully",
-    "data": {
-      "_id": "64f1a2b3c4d5e6f7a8b9c0d2",
+    "captain": {
+      "_id": "674ef1a2b3c4d5e6f7a8b902",
       "fullname": {
-        "firstname": "Jane",
-        "lastname": "Doe"
+        "firstname": "Alex",
+        "lastname": "Driver"
       },
-      "email": "jane.doe@example.com",
+      "email": "alex.driver@example.com",
       "status": "inactive",
       "vehicle": {
-        "color": "Black",
-        "plate": "DL01AB1234",
+        "color": "White",
+        "plate": "DL 01 AB 9876",
         "capacity": 4,
         "vehicleType": "car"
       }
@@ -350,61 +392,42 @@ Registers a new captain (driver) account along with vehicle specifications, hash
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
   ```
-  *Sets HTTP-only cookie: `token=<jwt_token>`*
-
-- **`400 Bad Request`** (Captain already exists)
-  ```json
-  {
-    "message": "Captain already exists"
-  }
-  ```
-
-- **`500 Internal Server Error`** (Validation failure or missing fields)
-  ```json
-  {
-    "message": "First name must be at least 3 characters long"
-  }
-  ```
+- **Error Responses:**
+  - `400 Bad Request`: `{"message": "Captain already exists"}`
+  - `500 Internal Server Error`: `{"message": "First name must be at least 3 characters long"}`
 
 ---
 
-### 7. Captain Login
-Authenticates an existing captain using email and password, issues a fresh JWT, and sets an HTTP-only cookie.
+#### POST `/captain/login`
+Authenticates a captain using email and password, generates a 24h JWT, and sets an HTTP-only cookie.
 
-- **URL:** `/captain/login`
-- **Method:** `POST`
-- **Auth Required:** No
-- **Headers:** `Content-Type: application/json`
-
-#### Validation Rules:
-- `email`: String, required, valid email, 5–30 characters.
-- `password`: String, required, 6–80 characters.
-
-#### Request Body:
-```json
-{
-  "email": "jane.doe@example.com",
-  "password": "secretpassword"
-}
-```
-
-#### Responses:
-- **`201 Created`** (Success)
+- **Access:** Public
+- **Validation Rules:**
+  - `email`: Required, valid email, 5–30 characters.
+  - `password`: Required, 6–80 characters.
+- **Request Body:**
+  ```json
+  {
+    "email": "alex.driver@example.com",
+    "password": "driverSecret123"
+  }
+  ```
+- **Response `201 Created`:**
   ```json
   {
     "success": true,
     "message": "Captain logged in successfully",
-    "data": {
-      "_id": "64f1a2b3c4d5e6f7a8b9c0d2",
+    "captain": {
+      "_id": "674ef1a2b3c4d5e6f7a8b902",
       "fullname": {
-        "firstname": "Jane",
-        "lastname": "Doe"
+        "firstname": "Alex",
+        "lastname": "Driver"
       },
-      "email": "jane.doe@example.com",
+      "email": "alex.driver@example.com",
       "status": "inactive",
       "vehicle": {
-        "color": "Black",
-        "plate": "DL01AB1234",
+        "color": "White",
+        "plate": "DL 01 AB 9876",
         "capacity": 4,
         "vehicleType": "car"
       }
@@ -412,215 +435,336 @@ Authenticates an existing captain using email and password, issues a fresh JWT, 
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
   ```
-  *Sets HTTP-only cookie: `token=<jwt_token>`*
+- **Error Responses:**
+  - `400 Bad Request`: `{"success": false, "message": "Invalid email or password"}`
+  - `401 Unauthorized`: `{"success": false, "message": "Invalid email or password"}`
 
-- **`400 Bad Request`** (Email not found)
+---
+
+#### GET `/captain/profile`
+Fetches the currently authenticated captain ID from the decoded JWT.
+
+- **Access:** Protected (`authUser` middleware)
+- **Headers / Cookies:**
+  - `Authorization: Bearer <token>` OR `Cookie: token=<token>`
+- **Response `200 OK`:**
   ```json
   {
-    "success": false,
-    "message": "Invalid email or password"
+    "user": "674ef1a2b3c4d5e6f7a8b902"
   }
   ```
+- **Error Responses:**
+  - `401 Unauthorized`: `{"message": "Unauthorized"}` or `{"message": "Unauthorized: Invalid or expired token"}`
 
-- **`401 Unauthorized`** (Password mismatch)
+---
+
+#### POST `/captain/logout`
+Logs out captain by clearing `token` cookie and blacklisting JWT.
+
+- **Access:** Protected (`authUser` middleware)
+- **Headers / Cookies:**
+  - `Authorization: Bearer <token>` OR `Cookie: token=<token>`
+- **Response `200 OK`:**
   ```json
   {
-    "success": false,
-    "message": "Invalid email or password"
-  }
-  ```
-
-- **`500 Internal Server Error`** (Validation or server error)
-  ```json
-  {
-    "message": "Password must be at least 6 characters long"
+    "success": true,
+    "message": "User logged out successfully"
   }
   ```
 
 ---
 
-## 🗺️ Maps Endpoints
+### 4. Maps Endpoints (`/maps`)
 
-All maps endpoints require authentication via `authUser` middleware (`token` cookie or `Authorization: Bearer <token>`) and use Google Maps APIs via `GOOGLE_MAPS_API`.
+All maps endpoints require authentication via `authUser` middleware (`Cookie: token` or `Authorization: Bearer <token>`).
 
-### 8. Get Coordinates
-Converts an address into latitude and longitude coordinates.
+#### GET `/maps/get-coordinates`
+Geocodes an address string to latitude and longitude using Google Geocoding API.
 
-- **URL:** `/maps/get-coordinates`
-- **Method:** `GET`
-- **Auth Required:** Yes
-- **Query Params:**
-  - `address` (string, min 3 chars, required)
-- **Response (`200 OK`):**
+- **Access:** Protected (`authUser`)
+- **Query Parameters:**
+  - `address` (string, min 3 characters, required)
+- **Example Request:**
+  ```http
+  GET /maps/get-coordinates?address=India+Gate+New+Delhi
+  Authorization: Bearer <token>
+  ```
+- **Response `200 OK`:**
   ```json
   {
-    "latitude": 28.6139391,
-    "longitude": 77.2090212
+    "latitude": 28.612912,
+    "longitude": 77.2295097
   }
   ```
+- **Error Responses:**
+  - `400 Bad Request`: Validation failure on missing or short address.
+  - `404 Not Found`: `{"message": "Coordinates not found"}`
 
 ---
 
-### 9. Get Distance & Time
-Calculates travel distance and duration between an origin and destination.
+#### GET `/maps/get-distance`
+Computes road travel distance and duration between two locations using Google Distance Matrix API.
 
-- **URL:** `/maps/get-distance`
-- **Method:** `GET`
-- **Auth Required:** Yes
-- **Query Params:**
+- **Access:** Protected (`authUser`)
+- **Query Parameters:**
   - `origin` (string, required)
   - `destination` (string, required)
-- **Response (`200 OK`):**
+- **Example Request:**
+  ```http
+  GET /maps/get-distance?origin=Connaught+Place+Delhi&destination=IGI+Airport+Delhi
+  Authorization: Bearer <token>
+  ```
+- **Response `200 OK`:**
   ```json
   {
-    "distance": { "text": "15 km", "value": 15000 },
-    "duration": { "text": "30 mins", "value": 1800 },
+    "distance": {
+      "text": "16.8 km",
+      "value": 16824
+    },
+    "duration": {
+      "text": "34 mins",
+      "value": 2045
+    },
     "status": "OK"
   }
   ```
+- **Error Responses:**
+  - `400 Bad Request`: Missing query parameters.
+  - `404 Not Found`: `{"message": "Distance not found"}`
 
 ---
 
-### 10. Get Autocomplete Suggestions
-Returns place/address suggestions matching search input.
+#### GET `/maps/get-auto-complete-suggestions`
+Retrieves location autocomplete suggestions for search inputs using Google Places Autocomplete API.
 
-- **URL:** `/maps/get-auto-complete-suggestions`
-- **Method:** `GET`
-- **Auth Required:** Yes
-- **Query Params:**
-  - `input` (string, min 3 chars, required)
-- **Response (`200 OK`):**
+- **Access:** Protected (`authUser`)
+- **Query Parameters:**
+  - `input` (string, min 1 character, required)
+- **Example Request:**
+  ```http
+  GET /maps/get-auto-complete-suggestions?input=Aerocity
+  Authorization: Bearer <token>
+  ```
+- **Response `200 OK`:**
   ```json
   [
     {
-      "description": "Connaught Place, New Delhi, Delhi, India",
-      "place_id": "ChIJb_xV8K39DDkR..."
+      "description": "Aerocity, New Delhi, Delhi, India",
+      "place_id": "ChIJAw_bVdMYDTkR5bKzU9hC1gU",
+      "matched_substrings": [
+        {
+          "length": 8,
+          "offset": 0
+        }
+      ],
+      "structured_formatting": {
+        "main_text": "Aerocity",
+        "secondary_text": "New Delhi, Delhi, India"
+      }
     }
   ]
   ```
+- **Error Responses:**
+  - `400 Bad Request`: Validation failure.
+  - `404 Not Found`: `{"message": "Suggestions not found"}`
 
 ---
 
-## 🚕 Ride Management
+### 5. Ride Endpoints (`/rides`)
 
-### 11. Create Ride
-Creates a new ride request, calculates vehicle-specific fare using distance & duration from Google Maps, generates a 6-digit OTP, and saves the ride in `pending` status.
+#### GET `/rides/get-fare`
+Calculates estimated fares across all supported vehicle categories (`auto`, `car`, `moto`) between pickup and destination.
 
-- **URL:** `/rides/create`
-- **Method:** `POST`
-- **Auth Required:** Yes (`authUser` middleware)
-- **Headers / Cookies:**
-  - Header: `Authorization: Bearer <token>`
-  - OR Cookie: `token=<jwt_token>`
-  - Header: `Content-Type: application/json`
+- **Access:** Protected (`authUser`)
+- **Query Parameters:**
+  - `pickup` (string, min 3 characters, required)
+  - `destination` (string, min 3 characters, required)
+- **Example Request:**
+  ```http
+  GET /rides/get-fare?pickup=Connaught+Place+Delhi&destination=Indira+Gandhi+International+Airport
+  Authorization: Bearer <token>
+  ```
+- **Response `200 OK`:**
+  ```json
+  {
+    "success": true,
+    "message": "Fare fetched successfully",
+    "fares": {
+      "auto": 121,
+      "car": 204,
+      "moto": 99
+    }
+  }
+  ```
+- **Error Responses:**
+  - `400 Bad Request`: Validation failure (pickup/destination shorter than 3 characters).
+  - `500 Internal Server Error`: `{"message": "No routes found"}` or distance calculation failure.
 
-#### Validation Rules:
-- `pickup`: String, required, 3–200 characters.
-- `destination`: String, required, 3–200 characters.
-- `vehicleType`: String, required, 3–20 characters, supported values: `"auto"`, `"car"`, `"moto"`.
+---
 
-#### Request Body:
-```json
-{
-  "pickup": "Connaught Place, New Delhi",
-  "destination": "Indira Gandhi International Airport, New Delhi",
-  "vehicleType": "car"
-}
-```
+#### POST `/rides/create`
+Initiates a new ride request. Calculates fare, generates a cryptographically secure 6-digit OTP, and stores the ride in `pending` status.
 
-#### Responses:
-- **`201 Created`** (Success)
+- **Access:** Protected (`authUser`)
+- **Validation Rules:**
+  - `pickup`: Required, string, 3–200 characters.
+  - `destination`: Required, string, 3–200 characters.
+  - `vehicleType`: Required, string, 3–20 characters (`"auto"`, `"car"`, or `"moto"`).
+- **Request Body:**
+  ```json
+  {
+    "pickup": "Connaught Place, New Delhi",
+    "destination": "Indira Gandhi International Airport, New Delhi",
+    "vehicleType": "car"
+  }
+  ```
+- **Response `201 Created`:**
   ```json
   {
     "success": true,
     "message": "Ride created successfully",
-    "data": {
-      "_id": "673f1a2b3c4d5e6f7a8b9c0d",
-      "user": "64f1a2b3c4d5e6f7a8b9c0d1",
+    "rides": {
+      "_id": "674ef3c5b3c4d5e6f7a8b955",
+      "user": "674ef1a2b3c4d5e6f7a8b901",
       "pickup": "Connaught Place, New Delhi",
       "destination": "Indira Gandhi International Airport, New Delhi",
       "vehicleType": "car",
-      "fare": 350,
+      "fare": 204,
       "status": "pending"
     }
   }
   ```
-
-- **`400 Bad Request`** (Validation failure)
-  ```json
-  {
-    "success": false,
-    "message": "Invalid input",
-    "errors": [
-      {
-        "msg": "Pickup must be at least 3 characters long",
-        "path": "pickup",
-        "location": "body"
-      }
-    ]
-  }
-  ```
-
-- **`401 Unauthorized`** (Missing or invalid auth token)
-  ```json
-  {
-    "message": "Unauthorized"
-  }
-  ```
-
-- **`500 Internal Server Error`** (Distance calculation or server failure)
-  ```json
-  {
-    "message": "No routes found"
-  }
-  ```
+  *(Note: The `otp` field is generated and stored in the database with `select: false` to keep it hidden from ride creation responses).*
+- **Error Responses:**
+  - `400 Bad Request`: Validation failure:
+    ```json
+    {
+      "success": false,
+      "message": "Invalid input",
+      "errors": [
+        {
+          "type": "field",
+          "value": "",
+          "msg": "Pickup must be at least 3 characters long",
+          "path": "pickup",
+          "location": "body"
+        }
+      ]
+    }
+    ```
+  - `401 Unauthorized`: Missing or invalid token.
+  - `500 Internal Server Error`: `{"message": "Could not calculate fare"}`
 
 ---
 
-## 🗄️ Database Models Summary
+## 🗄️ Data Models
 
-### User (`models/user.model.js`)
-- `fullname.firstname`: `String` (required, 3–20 chars)
-- `fullname.lastname`: `String` (optional/required by service, 3–20 chars)
-- `email`: `String` (required, unique, regex validated, 5–30 chars)
-- `password`: `String` (required, min 6 chars, `select: false`)
-- **Methods:**
-  - `generateHashPassword(password)` (static): Generates bcrypt hash with salt 10.
-  - `comparePassword(password)` (instance): Compares plaintext password against hashed password.
-  - `generateAuthToken()` (instance): Signs and returns 24h JWT.
+### User Model
+Defined in `src/models/user.model.js` (`collection: users`):
 
-### Captain (`models/captain.model.js`)
-- `fullname.firstname`: `String` (required, 3–20 chars)
-- `fullname.lastname`: `String` (optional in schema, required by service, 3–20 chars)
-- `email`: `String` (required, unique, regex validated, 5–30 chars)
-- `password`: `String` (required, min 6 chars, `select: false`)
-- `socketId`: `String` (optional socket connection identifier)
-- `status`: `String` (enum: `['active', 'inactive']`, default `'inactive'`)
-- `vehicle.color`: `String` (required, min 3 chars)
-- `vehicle.plate`: `String` (required, min 3 chars)
-- `vehicle.capacity`: `Number` (required, min 1 in schema, validator enforces 3–20)
-- `vehicle.vehicleType`: `String` (required, enum: `['car', 'motorcycle', 'auto']`)
-- `location.ltd`: `Number` (optional latitude)
-- `location.lng`: `Number` (optional longitude)
-- **Methods:**
-  - `generateHashPassword(password)` (static): Generates bcrypt hash with salt 10.
-  - `comparePassword(password)` (instance): Compares plaintext password against hashed password.
-  - `generateAuthToken()` (instance): Signs and returns 24h JWT.
+| Field | Type | Attributes | Description |
+|---|---|---|---|
+| `fullname.firstname` | `String` | Required, trim, min 3, max 20 | Passenger first name |
+| `fullname.lastname` | `String` | Optional, trim, max 20 | Passenger last name |
+| `email` | `String` | Required, unique, trim, min 5, max 30, email regex | Unique email address |
+| `password` | `String` | Required, trim, min 6, max 80, `select: false` | Bcrypt hashed password |
+| `socketId` | `String` | Optional | Active WebSocket connection ID |
 
-### BlacklistToken (`models/blacklistToken.model.js`)
-- `token`: `String` (required, trimmed)
-- `createdAt`: `Date` (default `Date.now`, expires in 1 day via MongoDB TTL)
+**Methods:**
+- `userSchema.statics.generateHashPassword(password)`: Hashes password with bcrypt (salt 10).
+- `userSchema.methods.comparePassword(password)`: Compares plaintext password against hash.
+- `userSchema.methods.generateAuthToken()`: Signs and returns a 24-hour JWT with payload `{ _id }`.
 
-### Ride (`models/ride.model.js`)
-- `user`: `ObjectId` (ref: `'user'`, required)
-- `captain`: `ObjectId` (ref: `'captain'`)
-- `status`: `String` (enum: `['pending', 'accepted', 'ongoing', 'completed', 'cancelled']`, default: `'pending'`)
-- `pickup`: `String` (required)
-- `destination`: `String` (required)
-- `fare`: `Number` (required)
-- `distance`: `Number`
-- `duration`: `Number`
-- `paymentID`: `String`
-- `orderID`: `String`
-- `signature`: `String`
-- `otp`: `String` (required, `select: false`)
+---
+
+### Captain Model
+Defined in `src/models/captain.model.js` (`collection: captains`):
+
+| Field | Type | Attributes | Description |
+|---|---|---|---|
+| `fullname.firstname` | `String` | Required, trim, min 3, max 20 | Driver first name |
+| `fullname.lastname` | `String` | Optional, trim, max 20 | Driver last name |
+| `email` | `String` | Required, unique, trim, min 5, max 30, email regex | Driver email |
+| `password` | `String` | Required, trim, min 6, max 80, `select: false` | Bcrypt hashed password |
+| `socketId` | `String` | Optional | Active WebSocket connection ID |
+| `status` | `String` | Enum: `['active', 'inactive']`, default `'inactive'` | Driver availability |
+| `vehicle.color` | `String` | Required, min 3 | Vehicle color |
+| `vehicle.plate` | `String` | Required, min 3 | Registration plate number |
+| `vehicle.capacity` | `Number` | Required, min 1 | Passenger seating capacity |
+| `vehicle.vehicleType` | `String` | Required, enum: `['car', 'motorcycle', 'auto']` | Vehicle category |
+| `location.ltd` | `Number` | Optional | Real-time latitude |
+| `location.lng` | `Number` | Optional | Real-time longitude |
+
+**Methods:**
+- `captainSchema.statics.generateHashPassword(password)`: Hashes password with bcrypt (salt 10).
+- `captainSchema.methods.comparePassword(password)`: Compares plaintext against hash.
+- `captainSchema.methods.generateAuthToken()`: Signs and returns a 24-hour JWT with payload `{ _id }`.
+
+---
+
+### Ride Model
+Defined in `src/models/ride.model.js` (`collection: rides`):
+
+| Field | Type | Attributes | Description |
+|---|---|---|---|
+| `user` | `ObjectId` | Required, ref: `'user'` | Reference to passenger user |
+| `captain` | `ObjectId` | Optional, ref: `'captain'` | Assigned driver |
+| `pickup` | `String` | Required | Origin address |
+| `destination` | `String` | Required | Destination address |
+| `fare` | `Number` | Required | Fare charged (in INR) |
+| `status` | `String` | Enum: `['pending', 'accepted', 'ongoing', 'completed', 'cancelled']`, default `'pending'` | Current status of ride |
+| `vehicleType` | `String` | Required, enum: `['auto', 'car', 'moto']` | Selected vehicle type |
+| `distance` | `Number` | Optional | Travel distance in meters |
+| `duration` | `Number` | Optional | Travel duration in seconds |
+| `paymentID` | `String` | Optional | Gateway transaction ID |
+| `orderID` | `String` | Optional | Payment order ID |
+| `signature` | `String` | Optional | Payment verification signature |
+| `otp` | `String` | Required, `select: false` | 6-digit verification code |
+
+---
+
+### BlacklistToken Model
+Defined in `src/models/blacklistToken.model.js` (`collection: blacklisttokens`):
+
+| Field | Type | Attributes | Description |
+|---|---|---|---|
+| `token` | `String` | Required, trim | Invalidated JWT string |
+| `createdAt` | `Date` | Default: `Date.now`, `expires: "1d"` | MongoDB TTL index; document auto-deleted after 24h |
+
+---
+
+## 🧪 Testing with cURL
+
+### 1. Register User
+```bash
+curl -X POST http://localhost:3000/user/register \
+  -H "Content-Type: application/json" \
+  -d '{"fullname":{"firstname":"John","lastname":"Doe"},"email":"john@example.com","password":"password123"}'
+```
+
+### 2. Login User
+```bash
+curl -X POST http://localhost:3000/user/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"john@example.com","password":"password123"}'
+```
+
+### 3. Get Fare Estimate
+```bash
+curl -X GET "http://localhost:3000/rides/get-fare?pickup=Connaught%20Place%20Delhi&destination=Noida%20Sector%2062" \
+  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
+```
+
+### 4. Create a Ride
+```bash
+curl -X POST http://localhost:3000/rides/create \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \
+  -d '{"pickup":"Connaught Place Delhi","destination":"Noida Sector 62","vehicleType":"car"}'
+```
+
+### 5. Logout User
+```bash
+curl -X POST http://localhost:3000/user/logout \
+  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
+```

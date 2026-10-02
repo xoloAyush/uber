@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom"
-import React,{ useState, useContext } from "react"
+import React, { useState, useContext } from "react"
 import UserContext from '../context/userContext.jsx'
 import axios from "axios";
 import { toast } from 'react-toastify'
@@ -9,10 +9,11 @@ const UserLogin = () => {
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    
-    const { user, setUser} = React.useContext(UserContext);
 
-    const handleLogin = async(e) => {
+    const { user, setUser } = React.useContext(UserContext);
+
+
+    const handleLogin = async (e) => {
         e.preventDefault();
 
         const newUser = {
@@ -20,21 +21,41 @@ const UserLogin = () => {
             password: password
         };
 
-        const response = await axios.post(`${import.meta.env.VITE_BASE_URL}/user/login`, newUser)
+        try {
+            const response = await axios.post(
+                `${import.meta.env.VITE_BASE_URL}/user/login`,
+                newUser
+            );
 
-        if (response.status === 201) {
-            toast.success('Login successful')
-            setUser(response.data.user)
-            localStorage.setItem('token', response.data.token);
-            navigate('/home')
+            // Login successful
+            if (response.status === 201) {
+                toast.success("Login successful");
 
-        } else {
-            toast.error(response.data.message)
+                setUser(response.data.user);
+
+                localStorage.setItem("token", response.data.token);
+                localStorage.setItem("role", "user");
+
+                navigate("/home");
+            }
+
+            setEmail("");
+            setPassword("");
+
+        } catch (error) {
+            console.log(error);
+
+            // Backend returned 401, 400, etc.
+            if (error.response) {
+                toast.error(
+                    error.response.data.message || "Invalid email or password"
+                );
+            } else {
+                toast.error("Something went wrong. Please try again.");
+            }
         }
+    };
 
-        setEmail('');
-        setPassword('');
-    }
 
     return (
         <div>

@@ -21,6 +21,7 @@ const VehiclePanel = (props) => {
         props.setConfirmRidePanel(true);
 
         props.setConfirmRideData(selectedVehicle);
+        props.setVehicleType(selectedVehicle.type);
 
         console.log("Selected vehicle:", selectedVehicle);
     };
@@ -44,7 +45,7 @@ const VehiclePanel = (props) => {
                 className="flex flex-col gap-4"
                 onClick={handleVehicleClick}
             >
-                {vehicles.map((vehicle) => (
+                {vehicles.map((vehicle, index) => (
                     <div
                         key={vehicle.id}
                         data-vehicle-id={vehicle.id}
@@ -77,7 +78,7 @@ const VehiclePanel = (props) => {
                         </div>
 
                         <h2 className="text-xl font-semibold">
-                            {vehicle.price}
+                            ₹{props.fare?.[vehicle.type] ?? "--"}
                         </h2>
                     </div>
                 ))}

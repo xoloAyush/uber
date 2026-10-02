@@ -2,6 +2,7 @@ export const vehicles = [
     {
         id: 1,
         name: "Car",
+        type: 'car',
         passengers: 4,
         time: "2 mins away",
         description: "Affordable, comfortable rides",
@@ -11,6 +12,7 @@ export const vehicles = [
     {
         id: 2,
         name: "Auto",
+        type: 'auto',
         passengers: 3,
         time: "4 mins away",
         description: "Quick and affordable rides",
@@ -20,6 +22,7 @@ export const vehicles = [
     {
         id: 3,
         name: "Bike",
+        type: 'moto',
         passengers: 1,
         time: "6 mins away",
         description: "Fast and budget-friendly rides",

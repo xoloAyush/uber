@@ -2,55 +2,52 @@ import rideModel from "../models/ride.model.js";
 import { getDistance } from "./maps.service.js";
 import crypto from "crypto";
 
-async function getFare({
-    pickup,
-    destination
-}) {
+async function getFare({ pickup, destination }) {
 
     if (!pickup || !destination) {
         throw new Error("Pickup and Destination are required");
     }
 
-    const distanceTime = await getDistance(
-        pickup,
-        destination
-    );
+    const distanceTime = await getDistance(pickup, destination);
 
     const baseFare = {
-        auto: 30,
-        car: 50,
-        moto: 20
+        auto: 20,
+        car: 35,
+        moto: 15
     };
 
     const perKmRate = {
-        auto: 10,
-        car: 15,
-        moto: 8
+        auto: 5,
+        car: 8,
+        moto: 4
     };
 
     const perMinuteRate = {
-        auto: 2,
-        car: 3,
-        moto: 1.5
+        auto: 0.5,
+        car: 1,
+        moto: 0.5
     };
+
+    const distanceKm = distanceTime.distance.value / 1000;
+    const durationMinutes = distanceTime.duration.value / 60;
 
     const fare = {
         auto: Math.round(
             baseFare.auto +
-            (distanceTime.distance.value / 1000) * perKmRate.auto +
-            (distanceTime.duration.value / 60) * perMinuteRate.auto
+            distanceKm * perKmRate.auto +
+            durationMinutes * perMinuteRate.auto
         ),
 
         car: Math.round(
             baseFare.car +
-            (distanceTime.distance.value / 1000) * perKmRate.car +
-            (distanceTime.duration.value / 60) * perMinuteRate.car
+            distanceKm * perKmRate.car +
+            durationMinutes * perMinuteRate.car
         ),
 
         moto: Math.round(
             baseFare.moto +
-            (distanceTime.distance.value / 1000) * perKmRate.moto +
-            (distanceTime.duration.value / 60) * perMinuteRate.moto
+            distanceKm * perKmRate.moto +
+            durationMinutes * perMinuteRate.moto
         )
     };
 
@@ -95,7 +92,7 @@ const createRide = async ({
         user,
         pickup,
         destination,
-        vehicleType,
+        vehicleType: vehicleType,
         fare: fare[vehicleType],
         otp
     });

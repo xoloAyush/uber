@@ -37,6 +37,11 @@ const rideSchema = new mongoose.Schema({
         type: Number,
 
     },
+    vehicleType: {
+        type: String,
+        enum: ["auto", "car", "moto"],
+        required: true
+    },
 
     paymentID: {
         type: String

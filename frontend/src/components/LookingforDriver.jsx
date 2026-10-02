@@ -1,85 +1,123 @@
-import React from 'react'
+import React from "react";
 import { vehicles } from "../data/vehicles";
-
 
 const LookingforDriver = (props) => {
 
-    const handleVehicleClick = (e) => {
-        const vehicle = e.target.closest("[data-vehicle-id]");
+    const vehicleData = props.confirmRideData;
 
-        if (!vehicle) return;
-        // console.log(vehicle)
-        // console.log(vehicle.dataset)
+    const selectedVehicle = vehicles.find(
+        (vehicle) => vehicle.type === props.vehicleType
+    );
 
-        const vehicleId = Number(vehicle.dataset.vehicleId);
+    if (!vehicleData) {
+        return null;
+    }
 
-        const selectedVehicle = vehicles.find(
-            (vehicle) => vehicle.id === vehicleId
-        );
-
-        props.setVehicleFound(false)
-        props.setWaitingForDriver(true)
-
-    };
+    console.log(vehicleData)
 
     return (
+        <div className="w-full bg-white px-2 pb-2">
 
-        <div>
+            {/* Header */}
+            <div className="relative flex items-center justify-center mb-2">
 
-            <h3 className="text-2xl font-semibold mb-5 ">
-                Looking for Driver
-            </h3>
+                <h2 className="text-2xl font-bold text-gray-900">
+                    Looking for Driver
+                </h2>
 
-            <h2 className="absolute text-4xl top-2 right-7"
-                onClick={() => {
-                    props.setVehicleFound(false)
-                }}>
-                <i className="ri-arrow-down-wide-fill"></i></h2>
+                <button
+                    onClick={() => {
+                        props.setVehicleFound(false);
+                    }}
+                    className="absolute right-0 top-0 text-2xl text-gray-400 hover:text-black cursor-pointer"
+                >
+                    <i className="ri-close-line"></i>
+                </button>
 
-            <div
-                className="flex flex-col gap-4"
-                onClick={handleVehicleClick}
-            >
-                {vehicles.map((vehicle) => (
-                    <div
-                        key={vehicle.id}
-                        data-vehicle-id={vehicle.id}
-                        className="flex border-2  active:border-black border-gray-300 rounded-xl
-                       w-full p-3 items-center cursor-pointer
-                       hover:bg-gray-100"
-                    >
-                        <img
-                            className="h-12"
-                            src={vehicle.image}
-                            alt={vehicle.name}
-                        />
-
-                        <div className="w-1/2 ml-10">
-                            <h4 className="font-medium text-base">
-                                {vehicle.name}{" "}
-                                <span>
-                                    <i className="ri-user-3-fill"></i>{" "}
-                                    sss{vehicle.passengers}
-                                </span>
-                            </h4>
-
-                            <h5 className="font-medium text-sm">
-                                {vehicle.time}
-                            </h5>
-
-                            <p className="font-normal text-xs text-gray-600">
-                                {vehicle.description}
-                            </p>
-                        </div>
-
-                        <h2 className="text-xl font-semibold">
-                            {vehicle.price}
-                        </h2>
-                    </div>
-                ))}
             </div>
-        </div>
-    )
-}
 
-export default LookingforDriver
+            {/* Vehicle Image */}
+            <div className="w-full flex justify-center items-center h-28">
+
+                <img
+                    src={selectedVehicle.image}
+                    alt={selectedVehicle.name}
+                    className="w-40 h-24 object-contain"
+                />
+
+            </div>
+
+            {/* Pickup */}
+            <div className="flex items-center gap-4 py-3 border-b border-gray-200">
+
+                <div className="flex items-center justify-center w-7 h-7 mt-1">
+                    <i className="ri-map-pin-line text-lg text-gray-900"></i>
+                </div>
+
+                <div className="flex-1">
+
+                    <h3 className="text-lg text-gray-900 leading-5">
+                        {props.pickup}
+                    </h3>
+
+                </div>
+
+            </div>
+
+            {/* Destination */}
+            <div className="flex items-center gap-4 py-3 border-b border-gray-200">
+
+                <div className="flex items-center justify-center w-7 h-7 mt-1">
+                    <i className="ri-map-pin-2-fill text-lg text-black"></i>
+                </div>
+
+                <div className="flex-1">
+
+                    <h3 className="text-lg text-gray-900 leading-5">
+                        {props.destination}
+                    </h3>
+
+                </div>
+
+            </div>
+
+            {/* Fare */}
+            <div className="flex items-center gap-4 py-3 mb-5">
+
+                <div className="flex items-center justify-center w-7 h-7">
+                    <i className="ri-wallet-3-line text-lg text-gray-900"></i>
+                </div>
+
+                <div>
+
+                    <h3 className="font-bold text-lg text-gray-900">
+                        ₹{props.fare?.[props.vehicleType] ?? "--"}
+                    </h3>
+
+                    <p className="text-sm text-gray-500">
+                        Cash
+                    </p>
+
+                </div>
+
+            </div>
+
+            {/* Looking for Driver Button */}
+            <button
+                onClick={(e) => {
+                    props.setVehicleFound(false),
+                        props.setWaitingForDriver(true)
+                }}
+                className="w-full bg-green-600
+                           text-white font-semibold
+                           py-2.5 rounded-md
+                           cursor-default"
+            >
+                Looking for Driver...
+            </button>
+
+        </div>
+    );
+};
+
+export default LookingforDriver;

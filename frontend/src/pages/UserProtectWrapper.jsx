@@ -1,50 +1,57 @@
-import React,{ useState, useContext } from "react"
-import UserContext from '../context/userContext.jsx'
+import React, { useState, useEffect } from "react";
+import UserContext from "../context/userContext.jsx";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 import axios from "axios";
 
-const UserProtectWrapper = ({children}) => {
+const UserProtectWrapper = ({ children }) => {
+    const { setUser } = React.useContext(UserContext);
 
-    const { user, setUser} = React.useContext(UserContext);
-
-    const [loading, setLoading] = useState('true')
+    const [loading, setLoading] = useState(true);
 
     const navigate = useNavigate();
-    const token = localStorage.getItem('token')
 
-    useEffect(()=>{
-        if(!token){
-            navigate('/login')
+    const token = localStorage.getItem("token");
+    const role = localStorage.getItem("role");
+
+    useEffect(() => {
+
+        // No token
+        if (!token) {
+            navigate("/login");
+            return;
         }
 
-        axios.get('http://localhost:3000/user/profile', {
+        // Logged-in captain trying to access user route
+        if (role !== "user") {
+            navigate("/captain-home");
+            return;
+        }
+
+        axios.get(`${import.meta.env.VITE_BASE_URL}/user/profile`, {
             headers: {
-                'Authorization': `Bearer ${token}`
+                Authorization: `Bearer ${token}`
             }
-        }).then((response) => {
-            setUser(response.data.user)
-            setLoading(false)
         })
-        .catch((error) => {
-            console.log(error);
-            localStorage.removeItem('token')
-            navigate('/login')
-        })
+            .then((response) => {
+                setUser(response.data.user);
+                setLoading(false);
+            })
+            .catch((error) => {
+                console.log(error);
 
-    }, [token])
+                localStorage.removeItem("token");
+                localStorage.removeItem("role");
 
-    if(loading){
-        return(
-            <div> Loading... </div>
-        )
+                navigate("/login");
+            });
+
+    }, [token, role, navigate, setUser]);
+
+    if (loading) {
+        return <div>Loading...</div>;
     }
 
-    return(
-        <div>
-            {children}  
-        </div>
-    )
-}
+    return children;
+};
 
-export default UserProtectWrapper
+export default UserProtectWrapper;

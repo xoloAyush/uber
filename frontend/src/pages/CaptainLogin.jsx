@@ -26,6 +26,8 @@ const CaptainLogin = () => {
                 localStorage.setItem('token', response.data.token);
                 toast.success('Login successful');
 
+                localStorage.setItem("role", "captain");
+
                 console.log(response.data.captain)
 
                 navigate('/captain-home');
