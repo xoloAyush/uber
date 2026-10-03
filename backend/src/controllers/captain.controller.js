@@ -118,7 +118,7 @@ export async function loginCaptain(req, res, next) {
 export async function getProfile(req, res, next) {
     try {
 
-        return res.status(200).json({ user: req.user })
+        return res.status(200).json({ captain: req.user._id })
 
     } catch (error) {
         res.status(500).json({

@@ -5,13 +5,16 @@ import { BrowserRouter } from 'react-router-dom'
 import { UserProvider } from './context/userContext.jsx'
 import { CaptainProvider } from './context/captainContext.jsx'
 import { ToastContainer } from 'react-toastify'
+import { SocketProvider } from './context/socketContext.jsx'
 
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
     <CaptainProvider>
       <UserProvider>
-        <App />
-        <ToastContainer />
+        <SocketProvider>
+          <App />
+          <ToastContainer />
+        </SocketProvider>
       </UserProvider>
     </CaptainProvider>
   </BrowserRouter>,

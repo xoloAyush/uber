@@ -1,30 +1,24 @@
 import React from "react";
 
-const RidePopup = (props) => {
+const RidePopup = ({
+    ride,
+    setRidePopup,
+    setConfirmRidePopUp
+}) => {
 
-    const rideData = {
-        rider: {
-            name: "Harsh Patel",
-            image: "https://images.unsplash.com/photo-1583692331501-5339b76cbf1e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fG1hbnxlbnwwfHwwfHx8MA%3D%3D",
-            distance: "2.2 KM",
-        },
+    // Don't render anything if ride data hasn't arrived
+    if (!ride) {
+        return null;
+    }
 
-        pickup: {
-            address: "562/11-A",
-            location: "Kankariya Talab, Bhopal",
-        },
-
-        destination: {
-            address: "562/11-A",
-            location: "Kankariya Talab, Bhopal",
-        },
-
-        fare: "₹193.20",
-        paymentMethod: "Cash",
-    };
+    console.log(
+        "Rider:",
+        ride.user?.fullname?.firstname,
+        ride.user?.fullname?.lastName
+    );
 
     return (
-        <div className="w-full  pb-4 rounded-md border border-gray-200">
+        <div className="w-full pb-4 rounded-md border border-gray-200">
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
@@ -33,9 +27,8 @@ const RidePopup = (props) => {
                     New Ride Available!
                 </h2>
 
-                {/* Close */}
                 <button
-                    onClick={() => props.setRidePopup(false)}
+                    onClick={() => setRidePopup(false)}
                     className="text-gray-400 hover:text-black text-2xl cursor-pointer"
                 >
                     <i className="ri-close-line"></i>
@@ -47,28 +40,27 @@ const RidePopup = (props) => {
             {/* Rider Information */}
             <div className="mx-3 bg-gray-200 flex items-center justify-between rounded-md px-2 py-2">
 
-                {/* Rider */}
                 <div className="flex items-center gap-3">
 
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white">
+
                         <img
-                            src={rideData.rider.image}
-                            alt={rideData.rider.name}
+                            src={
+                                ride.user?.profileImage ||
+                                "/default-avatar.png"
+                            }
+                            alt="Rider"
                             className="w-full h-full object-cover"
                         />
+
                     </div>
 
-                    <h3 className="font-semibold ">
-                        {rideData.rider.name}
+                    <h3 className="font-semibold">
+                        {ride.user?.fullname?.firstname + " " +
+                        ride.user?.fullname?.lastname}
                     </h3>
 
                 </div>
-
-
-                {/* Distance */}
-                <p className="font-bold ">
-                    {rideData.rider.distance}
-                </p>
 
             </div>
 
@@ -76,24 +68,17 @@ const RidePopup = (props) => {
             {/* Ride Details */}
             <div className="px-4">
 
-
                 {/* Pickup */}
                 <div className="flex gap-4 py-4 border-b">
 
-                    {/* Icon */}
                     <div className="flex justify-center pt-1">
                         <i className="ri-map-pin-user-fill text-xl text-gray-700"></i>
                     </div>
 
-                    {/* Address */}
                     <div>
                         <h3 className="font-semibold text-lg">
-                            {rideData.pickup.address}
+                            {ride.pickup || "Pickup Location"}
                         </h3>
-
-                        <p className="text-sm text-gray-500">
-                            {rideData.pickup.location}
-                        </p>
                     </div>
 
                 </div>
@@ -102,20 +87,14 @@ const RidePopup = (props) => {
                 {/* Destination */}
                 <div className="flex gap-4 py-4 border-b">
 
-                    {/* Icon */}
                     <div className="flex justify-center pt-1">
                         <i className="ri-map-pin-fill text-xl text-black"></i>
                     </div>
 
-                    {/* Address */}
                     <div>
                         <h3 className="font-semibold text-lg">
-                            {rideData.destination.address}
+                            {ride.destination || "Destination"}
                         </h3>
-
-                        <p className="text-sm text-gray-500">
-                            {rideData.destination.location}
-                        </p>
                     </div>
 
                 </div>
@@ -130,25 +109,20 @@ const RidePopup = (props) => {
 
                     <div>
                         <h3 className="font-semibold text-lg">
-                            {rideData.fare}
+                            ₹ {ride.fare ?? 0}
                         </h3>
-
-                        <p className="text-sm text-gray-500">
-                            {rideData.paymentMethod}
-                        </p>
                     </div>
 
                 </div>
 
 
-                {/* Confirm */}
+                {/* Accept */}
                 <button
                     onClick={() => {
-                        console.log("Ride accepted");
+                        console.log("Ride accepted", ride);
 
-                        // Example:
-                        props.setRidePopup(false);
-                        props.setConfirmRidePopUp(true);
+                        setRidePopup(false);
+                        setConfirmRidePopUp(true);
                     }}
                     className="
                         w-full
@@ -172,7 +146,7 @@ const RidePopup = (props) => {
                     onClick={() => {
                         console.log("Ride ignored");
 
-                        props.setRidePopup(false);
+                        setRidePopup(false);
                     }}
                     className="
                         w-full

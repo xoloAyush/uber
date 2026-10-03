@@ -21,7 +21,7 @@ export const authUser = async (req, res, next) => {
         }
 
         const decode = jwt.verify(token, process.env.JWT);
-        req.user = decode._id;
+        req.user = decode;
 
         next();
 
@@ -36,4 +36,4 @@ export const authUser = async (req, res, next) => {
         });
     }
 
-}
+}

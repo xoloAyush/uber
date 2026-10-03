@@ -1,4 +1,5 @@
 import axios from "axios";
+import captainModel from "../models/captain.model.js";
 
 export const getAddressCoordinate = async (address) => {
     if (!address) {
@@ -128,3 +129,22 @@ export const getAutoCompleteSuggestion = async (input) => {
         throw error;
     }
 };
+
+export const getCaptainsInTheRadius = async (ltd, lng, radius) => {
+
+    // radius in km
+    if (!ltd || !lng || !radius) {
+        throw new Error("Latitude, longitude and radius are required");
+    }
+
+    const captains = await captainModel.find({
+        location: {
+            $geoWithin: {
+                $centerSphere: [[ltd, lng], radius / 6371]
+            }
+        }
+    });
+
+    return captains;
+
+}

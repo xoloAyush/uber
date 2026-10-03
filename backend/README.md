@@ -1,6 +1,6 @@
 # Uber Clone - Backend API Documentation
 
-A scalable, secure RESTful API built with **Node.js**, **Express.js**, and **MongoDB (Mongoose)** powering the Uber clone application. Includes dual authentication for passengers and captains (drivers), Google Maps integration (geocoding, distance matrix, and autocomplete), dynamic fare calculation, and ride request management.
+A scalable, secure RESTful API and real-time event system built with **Node.js**, **Express.js (v5)**, **MongoDB (Mongoose v9)**, and **Socket.io** powering the Uber clone application. Features dual authentication for passengers and captains (drivers), real-time driver tracking, geolocation & Google Maps integration, dynamic fare estimation, and real-time ride request dispatching to nearby drivers.
 
 ---
 
@@ -19,6 +19,7 @@ A scalable, secure RESTful API built with **Node.js**, **Express.js**, and **Mon
 - [Endpoints Summary](#-endpoints-summary)
 - [Detailed API Reference](#-detailed-api-reference)
   - [1. Health Check](#1-health-check)
+    - [GET /](#get-)
   - [2. User Endpoints (`/user`)](#2-user-endpoints-user)
     - [POST /user/register](#post-userregister)
     - [POST /user/login](#post-userlogin)
@@ -36,24 +37,31 @@ A scalable, secure RESTful API built with **Node.js**, **Express.js**, and **Mon
   - [5. Ride Endpoints (`/rides`)](#5-ride-endpoints-rides)
     - [GET /rides/get-fare](#get-ridesget-fare)
     - [POST /rides/create](#post-ridescreate)
-- [Data Models](#-data-models)
+- [⚡ Real-Time WebSockets (Socket.io)](#-real-time-websockets-socketio)
+  - [Socket Server Configuration](#socket-server-configuration)
+  - [Socket Events Architecture](#socket-events-architecture)
+  - [Real-Time Ride Dispatch Workflow](#real-time-ride-dispatch-workflow)
+- [🗄️ Data Models](#-data-models)
   - [User Model](#user-model)
   - [Captain Model](#captain-model)
   - [Ride Model](#ride-model)
   - [BlacklistToken Model](#blacklisttoken-model)
+- [🧪 Testing with cURL & WebSockets](#-testing-with-curl--websockets)
+  - [HTTP Requests](#http-requests)
+  - [WebSocket Client Example](#websocket-client-example)
 
 ---
 
 ## 🛠️ Tech Stack
 
 - **Runtime:** Node.js (ES Modules)
-- **Framework:** Express.js (v5)
-- **Database:** MongoDB via Mongoose (v9)
+- **Framework:** Express.js (v5.2.1)
+- **Database:** MongoDB via Mongoose (v9.10.1)
+- **Real-Time Engine:** Socket.io (v4.8.4)
 - **Authentication:** JSON Web Tokens (`jsonwebtoken`), Password Hashing (`bcrypt`)
-- **Validation:** `express-validator`
+- **Request Validation:** `express-validator` (v7.3.2)
 - **External APIs:** Google Maps API (Geocoding API, Distance Matrix API, Places Autocomplete API) via `axios`
-- **HTTP Utilities:** `cookie-parser`, `cors`, `dotenv`
-- **WebSockets:** `socket.io`
+- **HTTP & Server Utilities:** `cookie-parser`, `cors`, `dotenv`
 
 ---
 
@@ -61,34 +69,35 @@ A scalable, secure RESTful API built with **Node.js**, **Express.js**, and **Mon
 
 ```text
 backend/
-├── .env                          # Local environment variables
+├── .env                          # Environment variables
 ├── package.json                  # Dependencies & scripts
-├── server.js                     # HTTP server entrypoint (port listening)
+├── server.js                     # HTTP & Socket.io server entrypoint
 └── src/
     ├── app.js                    # Express app configuration, CORS, routes & DNS setup
+    ├── socket.js                 # Socket.io initialization, events & message dispatchers
     ├── controllers/
-    │   ├── captain.controller.js # Captain register, login, profile, logout
+    │   ├── captain.controller.js # Captain register, login, profile, logout handlers
     │   ├── maps.controller.js    # Coordinates, distance, autocomplete handlers
-    │   ├── ride.controller.js    # Create ride & get fare handlers
-    │   └── user.controller.js    # User register, login, profile, logout
+    │   ├── ride.controller.js    # Create ride (with socket dispatch) & fare calculation
+    │   └── user.controller.js    # User register, login, profile, logout handlers
     ├── db/
-    │   └── db.js                 # Mongoose connection logic
+    │   └── db.js                 # Mongoose database connection
     ├── middlewares/
     │   └── middleware.user.js    # authUser JWT & blacklist verification middleware
     ├── models/
-    │   ├── blacklistToken.model.js # Revoked JWTs with 24h TTL
-    │   ├── captain.model.js      # Captain schema & methods
-    │   ├── ride.model.js         # Ride booking schema
-    │   └── user.model.js         # User schema & methods
+    │   ├── blacklistToken.model.js # Revoked JWTs with 24h MongoDB TTL index
+    │   ├── captain.model.js      # Captain schema, location coords, vehicle & auth methods
+    │   ├── ride.model.js         # Ride booking schema & status state machine
+    │   └── user.model.js         # User schema & auth methods
     ├── routes/
-    │   ├── captain.route.js      # /captain routes & express-validator rules
-    │   ├── maps.routes.js        # /maps routes & express-validator rules
-    │   ├── ride.route.js         # /rides routes & express-validator rules
-    │   └── user.route.js         # /user routes & express-validator rules
+    │   ├── captain.route.js      # /captain endpoints & express-validator rules
+    │   ├── maps.routes.js        # /maps endpoints & validation rules
+    │   ├── ride.route.js         # /rides endpoints & validation rules
+    │   └── user.route.js         # /user endpoints & validation rules
     └── services/
         ├── captain.service.js    # Captain creation service
-        ├── maps.service.js       # Google Maps API service
-        ├── ride.service.js       # Ride creation, OTP generation & fare computation
+        ├── maps.service.js       # Google Geocoding, Distance Matrix, Autocomplete & Geo-radius lookup
+        ├── ride.service.js       # Ride creation, 6-digit OTP generation & fare calculation
         └── user.service.js       # User creation service
 ```
 
@@ -108,9 +117,9 @@ GOOGLE_MAPS_API=AIzaSyYourGoogleMapsApiKey
 ```
 
 > **Note on Google Maps API:** Your API key must have the following Google Cloud APIs enabled:
-> 1. **Geocoding API**
-> 2. **Distance Matrix API**
-> 3. **Places API (New or Legacy Place Autocomplete)**
+> 1. **Geocoding API** (for coordinates lookup)
+> 2. **Distance Matrix API** (for road distance & duration computation)
+> 3. **Places API (New or Legacy Place Autocomplete)** (for place search suggestions)
 
 ### Installation & Running
 
@@ -125,8 +134,11 @@ npm install
 npm run dev
 ```
 
-- **Base URL:** `http://localhost:3000` (or the configured `PORT`)
-- **CORS Allowed Origin:** `http://localhost:5173` with credentials (`withCredentials: true`)
+- **Default Server Port:** `3001` (or the configured `PORT` in `.env`)
+- **CORS Allowed Origins:**
+  - `http://localhost:5173`
+  - `https://373wcwgx-5173.inc1.devtunnels.ms`
+  - Credentials supported (`credentials: true`)
 
 ---
 
@@ -140,16 +152,16 @@ npm run dev
   2. **Authorization Header:** `Authorization: Bearer <token>`
 
 ### Token Blacklisting
-Upon calling `/user/logout` or `/captain/logout`, the current token is inserted into the `blacklistTokens` collection with a 1-day MongoDB TTL index (`expires: "1d"`). Once blacklisted, subsequent requests using this token are rejected.
+Upon calling `/user/logout` or `/captain/logout`, the current token is inserted into the `blacklistTokens` collection with a 1-day MongoDB TTL index (`expires: "1d"`). Once blacklisted, subsequent requests using this token are rejected immediately.
 
 ### Auth Middleware (`authUser`)
 Located in `src/middlewares/middleware.user.js`:
-1. Extracts token from `req.cookies.token` or `req.headers.authorization`.
+1. Extracts token from `req.headers.authorization?.split(' ')[1]` or `req.cookies?.token`.
 2. Rejects with `401 Unauthorized` if token is missing.
 3. Checks `blacklistToken` collection; rejects with `401 Unauthorized` if blacklisted.
 4. Verifies JWT signature using `process.env.JWT`.
 5. If invalid or expired, catches `JsonWebTokenError` / `TokenExpiredError` and responds with `401 Unauthorized: Invalid or expired token`.
-6. Attaches `decode._id` to `req.user` and passes control to the next handler.
+6. Attaches decoded token payload `{ _id, iat, exp }` to `req.user` and calls `next()`.
 
 ---
 
@@ -174,36 +186,36 @@ $$\text{Fare} = \text{Base Fare} + (\text{Distance in km} \times \text{Per-Km Ra
 ### General
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/` | Public | Server health check |
+| `GET` | `/` | Public | Server health check status |
 
 ### User Endpoints (`/user`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/user/register` | Public | Register new user, hash password, return token & cookie |
+| `POST` | `/user/register` | Public | Register new user, hash password, return token & set cookie |
 | `POST` | `/user/login` | Public | Authenticate user, return token & set cookie |
-| `GET` | `/user/profile` | Protected | Get authenticated user ID (`req.user`) |
-| `POST` | `/user/logout` | Protected | Clear auth cookie and blacklist token |
+| `GET` | `/user/profile` | Protected (`authUser`) | Fetch authenticated user ID (`{ user: req.user._id }`) |
+| `POST` | `/user/logout` | Protected (`authUser`) | Clear auth cookie and blacklist JWT token |
 
 ### Captain Endpoints (`/captain`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/captain/register` | Public | Register new captain with vehicle, return token & cookie |
+| `POST` | `/captain/register` | Public | Register new captain with vehicle, return token & set cookie |
 | `POST` | `/captain/login` | Public | Authenticate captain, return token & set cookie |
-| `GET` | `/captain/profile` | Protected | Get authenticated captain ID (`req.user`) |
-| `POST` | `/captain/logout` | Protected | Clear auth cookie and blacklist token |
+| `GET` | `/captain/profile` | Protected (`authUser`) | Fetch authenticated captain ID (`{ captain: req.user._id }`) |
+| `POST` | `/captain/logout` | Protected (`authUser`) | Clear auth cookie and blacklist JWT token |
 
 ### Maps Endpoints (`/maps`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/maps/get-coordinates` | Protected | Get latitude & longitude for an address string |
-| `GET` | `/maps/get-distance` | Protected | Get distance & duration between origin and destination |
-| `GET` | `/maps/get-auto-complete-suggestions` | Protected | Get autocomplete suggestions for search query |
+| `GET` | `/maps/get-coordinates` | Protected (`authUser`) | Geocode address to latitude & longitude |
+| `GET` | `/maps/get-distance` | Protected (`authUser`) | Compute road distance & duration between origin and destination |
+| `GET` | `/maps/get-auto-complete-suggestions` | Protected (`authUser`) | Search autocomplete predictions for location search input |
 
 ### Ride Endpoints (`/rides`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/rides/get-fare` | Protected | Get calculated fares for auto, car, and moto |
-| `POST` | `/rides/create` | Protected | Create ride booking with 6-digit OTP & pending status |
+| `GET` | `/rides/get-fare` | Protected (`authUser`) | Calculate fares across `auto`, `car`, and `moto` |
+| `POST` | `/rides/create` | Protected (`authUser`) | Create ride booking, generate OTP, find captains within 2km & emit `new-ride` socket event |
 
 ---
 
@@ -212,7 +224,7 @@ $$\text{Fare} = \text{Base Fare} + (\text{Distance in km} \times \text{Per-Km Ra
 ### 1. Health Check
 
 #### GET `/`
-Checks if the backend server is running.
+Checks if the backend server is operational.
 
 - **Access:** Public
 - **Response `200 OK`:**
@@ -230,7 +242,7 @@ Creates a new passenger account, generates password hash with bcrypt, sets HTTP-
 - **Access:** Public
 - **Validation Rules:**
   - `fullname.firstname`: Required, string, 3–20 characters.
-  - `fullname.lastname`: Optional in schema (max 20 characters).
+  - `fullname.lastname`: Optional (max 20 characters).
   - `email`: Required, valid email format, 5–30 characters, must be unique.
   - `password`: Required, min 6 characters (max 80).
 - **Request Body:**
@@ -303,7 +315,7 @@ Authenticates an existing user via email and password, creates a 24h JWT, and se
 ---
 
 #### GET `/user/profile`
-Fetches the currently authenticated user ID from the decoded JWT.
+Fetches the authenticated user ID from the decoded JWT payload (`req.user._id`).
 
 - **Access:** Protected (`authUser` middleware)
 - **Headers / Cookies:**
@@ -346,11 +358,11 @@ Registers a new captain (driver) account with vehicle details.
   - `fullname.lastname`: Optional (max 20 characters).
   - `email`: Required, valid email format, 5–30 characters, must be unique.
   - `password`: Required, min 6 characters (max 80).
-  - `status`: Required, string, 3–20 characters (schema default: `'inactive'`, enum: `['active', 'inactive']`).
-  - `vehicle.color`: Required, min 3 characters.
-  - `vehicle.plate`: Required, min 3 characters.
+  - `status`: Required, string, 3–20 characters (`'active'` or `'inactive'`).
+  - `vehicle.color`: Required, min 3 characters (max 20).
+  - `vehicle.plate`: Required, min 3 characters (max 20).
   - `vehicle.capacity`: Required, integer, min 1.
-  - `vehicle.vehicleType`: Required, enum: `['car', 'motorcycle', 'auto']`.
+  - `vehicle.vehicleType`: Required, string, min 3 characters (max 20) (schema enum: `['car', 'motorcycle', 'auto']`).
 - **Request Body:**
   ```json
   {
@@ -394,7 +406,7 @@ Registers a new captain (driver) account with vehicle details.
   ```
 - **Error Responses:**
   - `400 Bad Request`: `{"message": "Captain already exists"}`
-  - `500 Internal Server Error`: `{"message": "First name must be at least 3 characters long"}`
+  - `500 Internal Server Error`: `{"message": "Validation error message"}`
 
 ---
 
@@ -442,7 +454,7 @@ Authenticates a captain using email and password, generates a 24h JWT, and sets 
 ---
 
 #### GET `/captain/profile`
-Fetches the currently authenticated captain ID from the decoded JWT.
+Fetches the authenticated captain ID from the decoded JWT payload (`req.user._id`).
 
 - **Access:** Protected (`authUser` middleware)
 - **Headers / Cookies:**
@@ -450,7 +462,7 @@ Fetches the currently authenticated captain ID from the decoded JWT.
 - **Response `200 OK`:**
   ```json
   {
-    "user": "674ef1a2b3c4d5e6f7a8b902"
+    "captain": "674ef1a2b3c4d5e6f7a8b902"
   }
   ```
 - **Error Responses:**
@@ -497,7 +509,20 @@ Geocodes an address string to latitude and longitude using Google Geocoding API.
   }
   ```
 - **Error Responses:**
-  - `400 Bad Request`: Validation failure on missing or short address.
+  - `400 Bad Request`: Validation failure on missing or short address:
+    ```json
+    {
+      "errors": [
+        {
+          "type": "field",
+          "value": "",
+          "msg": "Invalid value",
+          "path": "address",
+          "location": "query"
+        }
+      ]
+    }
+    ```
   - `404 Not Found`: `{"message": "Coordinates not found"}`
 
 ---
@@ -597,19 +622,45 @@ Calculates estimated fares across all supported vehicle categories (`auto`, `car
   }
   ```
 - **Error Responses:**
-  - `400 Bad Request`: Validation failure (pickup/destination shorter than 3 characters).
+  - `400 Bad Request`: Validation failure:
+    ```json
+    {
+      "success": false,
+      "message": "Invalid input",
+      "errors": [
+        {
+          "type": "field",
+          "msg": "Invalid pickup address",
+          "path": "pickup",
+          "location": "query"
+        }
+      ]
+    }
+    ```
   - `500 Internal Server Error`: `{"message": "No routes found"}` or distance calculation failure.
 
 ---
 
 #### POST `/rides/create`
-Initiates a new ride request. Calculates fare, generates a cryptographically secure 6-digit OTP, and stores the ride in `pending` status.
+Initiates a new ride request, calculates fare, generates a 6-digit OTP, locates captains within a 2 km radius, and broadcasts the ride to captains in real time via Socket.io.
 
 - **Access:** Protected (`authUser`)
 - **Validation Rules:**
   - `pickup`: Required, string, 3–200 characters.
   - `destination`: Required, string, 3–200 characters.
   - `vehicleType`: Required, string, 3–20 characters (`"auto"`, `"car"`, or `"moto"`).
+- **Ride Creation & Dispatch Workflow:**
+  1. Validates request body fields with `express-validator`.
+  2. Computes the fare via `getFare({ pickup, destination })`.
+  3. Generates a cryptographically secure 6-digit numeric OTP using `crypto.randomInt()`.
+  4. Saves the ride in MongoDB with `status: 'pending'`, `user: req.user`, and the assigned fare.
+  5. Geocodes `pickup` address into coordinates via `getAddressCoordinate(pickup)`.
+  6. Finds all captains within a **2 km radius** using MongoDB `$geoWithin` with spherical center:
+     $$\text{Angular Distance} = \frac{2 \text{ km}}{6371 \text{ km}}$$
+  7. Populates the passenger details (`user`) on the ride document.
+  8. Clears the OTP (`ride.otp = ''`) to ensure security.
+  9. Emits a real-time `'new-ride'` Socket.io event to every nearby captain's `socketId`.
+  10. Responds with status `201 Created`.
 - **Request Body:**
   ```json
   {
@@ -625,16 +676,20 @@ Initiates a new ride request. Calculates fare, generates a cryptographically sec
     "message": "Ride created successfully",
     "rides": {
       "_id": "674ef3c5b3c4d5e6f7a8b955",
-      "user": "674ef1a2b3c4d5e6f7a8b901",
+      "user": {
+        "_id": "674ef1a2b3c4d5e6f7a8b901",
+        "iat": 1733224800,
+        "exp": 1733311200
+      },
       "pickup": "Connaught Place, New Delhi",
       "destination": "Indira Gandhi International Airport, New Delhi",
       "vehicleType": "car",
       "fare": 204,
-      "status": "pending"
+      "status": "pending",
+      "otp": ""
     }
   }
   ```
-  *(Note: The `otp` field is generated and stored in the database with `select: false` to keep it hidden from ride creation responses).*
 - **Error Responses:**
   - `400 Bad Request`: Validation failure:
     ```json
@@ -652,8 +707,65 @@ Initiates a new ride request. Calculates fare, generates a cryptographically sec
       ]
     }
     ```
-  - `401 Unauthorized`: Missing or invalid token.
+  - `401 Unauthorized`: Missing or invalid auth token.
   - `500 Internal Server Error`: `{"message": "Could not calculate fare"}`
+
+---
+
+## ⚡ Real-Time WebSockets (Socket.io)
+
+The backend provides a real-time event-driven WebSocket layer via **Socket.io** attached directly to the Express HTTP server in `server.js`.
+
+### Socket Server Configuration
+- **Entrypoint:** `src/socket.js`
+- **Initialized In:** `server.js` (`initializeSocket(server)`)
+- **CORS Allowed Origins:**
+  - `http://localhost:5173`
+  - `https://373wcwgx-5173.inc1.devtunnels.ms`
+- **Supported Transports & Methods:** `GET`, `POST` with credentials enabled.
+- **Exported Dispatcher Helper:** `sendMessageToSocketId(socketId, messageObject)`
+
+### Socket Events Architecture
+
+| Event | Direction | Payload | Description |
+|---|---|---|---|
+| `connection` | Server &larr; Client | - | Triggered automatically when client establishes WebSocket connection |
+| `join` | Server &larr; Client | `{ userId: string, userType: 'user' \| 'captain' }` | Maps and persists the active `socket.id` on the corresponding User or Captain document in MongoDB |
+| `update-location-captain` | Server &larr; Client | `{ userId: string, location: { ltd: number, lng: number } }` | Updates captain's current real-time GPS coordinates in MongoDB (`location.ltd`, `location.lng`) |
+| `new-ride` | Server &rarr; Client | Populated Ride Document (`rideWithUser`) | Emitted by server to all captains within 2km radius of pickup location when a ride is created |
+| `error` | Server &rarr; Client | `{ message: 'Invalid location' }` | Emitted back to captain client if location payload in `update-location-captain` is invalid or missing |
+| `disconnect` | Server &larr; Client | - | Triggered when client connection is closed |
+
+### Real-Time Ride Dispatch Workflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Passenger as Passenger (App)
+    actor Captain as Captain (Driver App)
+    participant Server as Express & Socket.io Server
+    participant Maps as Google Maps API
+    participant DB as MongoDB
+
+    Captain->>Server: Socket connect
+    Captain->>Server: emit("join", { userId, userType: "captain" })
+    Server->>DB: Update Captain document with socketId
+
+    loop Every Location Update
+        Captain->>Server: emit("update-location-captain", { userId, location: { ltd, lng } })
+        Server->>DB: Update captain's location coordinates
+    end
+
+    Passenger->>Server: POST /rides/create { pickup, destination, vehicleType }
+    Server->>Maps: Geocode pickup address
+    Maps-->>Server: { latitude, longitude }
+    Server->>DB: Query captains within 2km radius ($geoWithin)
+    DB-->>Server: [ nearbyCaptains ]
+    Server->>DB: Create Ride with 6-digit OTP & pending status
+    DB-->>Server: savedRide
+    Server->>Captain: emit("new-ride", rideWithUser) via captain.socketId
+    Server-->>Passenger: 201 Created { success: true, rides: ride }
+```
 
 ---
 
@@ -666,9 +778,9 @@ Defined in `src/models/user.model.js` (`collection: users`):
 |---|---|---|---|
 | `fullname.firstname` | `String` | Required, trim, min 3, max 20 | Passenger first name |
 | `fullname.lastname` | `String` | Optional, trim, max 20 | Passenger last name |
-| `email` | `String` | Required, unique, trim, min 5, max 30, email regex | Unique email address |
+| `email` | `String` | Required, unique, trim, min 5, max 30, email regex | Passenger email address |
 | `password` | `String` | Required, trim, min 6, max 80, `select: false` | Bcrypt hashed password |
-| `socketId` | `String` | Optional | Active WebSocket connection ID |
+| `socketId` | `String` | Optional | Active WebSocket socket ID |
 
 **Methods:**
 - `userSchema.statics.generateHashPassword(password)`: Hashes password with bcrypt (salt 10).
@@ -684,16 +796,16 @@ Defined in `src/models/captain.model.js` (`collection: captains`):
 |---|---|---|---|
 | `fullname.firstname` | `String` | Required, trim, min 3, max 20 | Driver first name |
 | `fullname.lastname` | `String` | Optional, trim, max 20 | Driver last name |
-| `email` | `String` | Required, unique, trim, min 5, max 30, email regex | Driver email |
+| `email` | `String` | Required, unique, trim, min 5, max 30, email regex | Driver email address |
 | `password` | `String` | Required, trim, min 6, max 80, `select: false` | Bcrypt hashed password |
-| `socketId` | `String` | Optional | Active WebSocket connection ID |
-| `status` | `String` | Enum: `['active', 'inactive']`, default `'inactive'` | Driver availability |
-| `vehicle.color` | `String` | Required, min 3 | Vehicle color |
-| `vehicle.plate` | `String` | Required, min 3 | Registration plate number |
+| `socketId` | `String` | Optional | Active WebSocket socket ID |
+| `status` | `String` | Enum: `['active', 'inactive']`, default `'inactive'` | Availability status |
+| `vehicle.color` | `String` | Required, min 3 | Vehicle exterior color |
+| `vehicle.plate` | `String` | Required, min 3 | Vehicle license plate number |
 | `vehicle.capacity` | `Number` | Required, min 1 | Passenger seating capacity |
 | `vehicle.vehicleType` | `String` | Required, enum: `['car', 'motorcycle', 'auto']` | Vehicle category |
-| `location.ltd` | `Number` | Optional | Real-time latitude |
-| `location.lng` | `Number` | Optional | Real-time longitude |
+| `location.ltd` | `Number` | Optional | Current real-time latitude |
+| `location.lng` | `Number` | Optional | Current real-time longitude |
 
 **Methods:**
 - `captainSchema.statics.generateHashPassword(password)`: Hashes password with bcrypt (salt 10).
@@ -707,17 +819,17 @@ Defined in `src/models/ride.model.js` (`collection: rides`):
 
 | Field | Type | Attributes | Description |
 |---|---|---|---|
-| `user` | `ObjectId` | Required, ref: `'user'` | Reference to passenger user |
-| `captain` | `ObjectId` | Optional, ref: `'captain'` | Assigned driver |
+| `user` | `ObjectId` | Required, ref: `'user'` | Passenger reference |
+| `captain` | `ObjectId` | Optional, ref: `'captain'` | Assigned driver reference |
 | `pickup` | `String` | Required | Origin address |
 | `destination` | `String` | Required | Destination address |
-| `fare` | `Number` | Required | Fare charged (in INR) |
-| `status` | `String` | Enum: `['pending', 'accepted', 'ongoing', 'completed', 'cancelled']`, default `'pending'` | Current status of ride |
-| `vehicleType` | `String` | Required, enum: `['auto', 'car', 'moto']` | Selected vehicle type |
-| `distance` | `Number` | Optional | Travel distance in meters |
-| `duration` | `Number` | Optional | Travel duration in seconds |
-| `paymentID` | `String` | Optional | Gateway transaction ID |
-| `orderID` | `String` | Optional | Payment order ID |
+| `fare` | `Number` | Required | Trip fare in INR |
+| `status` | `String` | Enum: `['pending', 'accepted', 'ongoing', 'completed', 'cancelled']`, default `'pending'` | Current ride booking status |
+| `vehicleType` | `String` | Required, enum: `['auto', 'car', 'moto']` | Selected vehicle category |
+| `distance` | `Number` | Optional | Distance in meters |
+| `duration` | `Number` | Optional | Duration in seconds |
+| `paymentID` | `String` | Optional | Payment gateway transaction ID |
+| `orderID` | `String` | Optional | Order ID |
 | `signature` | `String` | Optional | Payment verification signature |
 | `otp` | `String` | Required, `select: false` | 6-digit verification code |
 
@@ -728,43 +840,133 @@ Defined in `src/models/blacklistToken.model.js` (`collection: blacklisttokens`):
 
 | Field | Type | Attributes | Description |
 |---|---|---|---|
-| `token` | `String` | Required, trim | Invalidated JWT string |
+| `token` | `String` | Required, trim | Blacklisted JWT token string |
 | `createdAt` | `Date` | Default: `Date.now`, `expires: "1d"` | MongoDB TTL index; document auto-deleted after 24h |
 
 ---
 
-## 🧪 Testing with cURL
+## 🧪 Testing with cURL & WebSockets
 
-### 1. Register User
+### HTTP Requests
+
+#### 1. Register User
 ```bash
 curl -X POST http://localhost:3000/user/register \
   -H "Content-Type: application/json" \
-  -d '{"fullname":{"firstname":"John","lastname":"Doe"},"email":"john@example.com","password":"password123"}'
+  -d '{
+    "fullname": { "firstname": "John", "lastname": "Doe" },
+    "email": "john@example.com",
+    "password": "password123"
+  }'
 ```
 
-### 2. Login User
+#### 2. Login User
 ```bash
 curl -X POST http://localhost:3000/user/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"john@example.com","password":"password123"}'
+  -d '{
+    "email": "john@example.com",
+    "password": "password123"
+  }'
 ```
 
-### 3. Get Fare Estimate
+#### 3. Get User Profile
+```bash
+curl -X GET http://localhost:3000/user/profile \
+  -H "Authorization: Bearer <USER_JWT_TOKEN>"
+```
+
+#### 4. Register Captain
+```bash
+curl -X POST http://localhost:3000/captain/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "fullname": { "firstname": "Alex", "lastname": "Driver" },
+    "email": "alex@example.com",
+    "password": "password123",
+    "status": "active",
+    "vehicle": {
+      "color": "White",
+      "plate": "DL01AB1234",
+      "capacity": 4,
+      "vehicleType": "car"
+    }
+  }'
+```
+
+#### 5. Get Captain Profile
+```bash
+curl -X GET http://localhost:3000/captain/profile \
+  -H "Authorization: Bearer <CAPTAIN_JWT_TOKEN>"
+```
+
+#### 6. Geocode Address
+```bash
+curl -X GET "http://localhost:3000/maps/get-coordinates?address=India+Gate+New+Delhi" \
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+#### 7. Calculate Fare
 ```bash
 curl -X GET "http://localhost:3000/rides/get-fare?pickup=Connaught%20Place%20Delhi&destination=Noida%20Sector%2062" \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
+  -H "Authorization: Bearer <JWT_TOKEN>"
 ```
 
-### 4. Create a Ride
+#### 8. Create Ride & Dispatch to Captains
 ```bash
 curl -X POST http://localhost:3000/rides/create \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>" \
-  -d '{"pickup":"Connaught Place Delhi","destination":"Noida Sector 62","vehicleType":"car"}'
+  -H "Authorization: Bearer <USER_JWT_TOKEN>" \
+  -d '{
+    "pickup": "Connaught Place Delhi",
+    "destination": "Noida Sector 62",
+    "vehicleType": "car"
+  }'
 ```
 
-### 5. Logout User
+#### 9. Logout
 ```bash
 curl -X POST http://localhost:3000/user/logout \
-  -H "Authorization: Bearer <YOUR_JWT_TOKEN>"
+  -H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+---
+
+### WebSocket Client Example
+
+Using `socket.io-client` in JavaScript:
+
+```javascript
+import { io } from "socket.io-client";
+
+// Connect to backend
+const socket = io("http://localhost:3000", {
+  withCredentials: true,
+});
+
+// 1. Join room and map socketId in database
+socket.emit("join", {
+  userId: "674ef1a2b3c4d5e6f7a8b902", // Captain or User MongoDB _id
+  userType: "captain"                 // "user" or "captain"
+});
+
+// 2. Captain updates GPS location periodically
+socket.emit("update-location-captain", {
+  userId: "674ef1a2b3c4d5e6f7a8b902",
+  location: {
+    ltd: 28.6139,
+    lng: 77.2090
+  }
+});
+
+// 3. Captain listens for incoming ride requests within 2km
+socket.on("new-ride", (rideData) => {
+  console.log("New ride request received:", rideData);
+  // rideData contains populated user details and sanitized otp
+});
+
+// 4. Listen for errors
+socket.on("error", (err) => {
+  console.error("Socket error:", err.message);
+});
 ```

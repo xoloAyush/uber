@@ -8,6 +8,9 @@ import ConfirmRidePanel from '../components/ConfirmRidePanel'
 import LookingforDriver from "../components/LookingforDriver";
 import WaitingforDriver from "../components/WaitingforDriver";
 import axios from 'axios'
+import SocketContext from "../context/socketContext";
+import { useContext } from "react";
+import UserContext from "../context/userContext";
 
 const Home = () => {
 
@@ -34,8 +37,14 @@ const Home = () => {
     const vehicleFoundRef = useRef(null)
     const waitingForDriverRef = useRef(null)
 
+    const { sendMessage, receiveMessage } = useContext(SocketContext)
+    const { user } = useContext(UserContext)
 
-    console.log(confirmRidePanel)
+    console.log(user)
+
+    useEffect(() => {
+        sendMessage('join', { userId: user, userType: 'user' })
+    }, [user])
 
     useGSAP(() => {
         if (panelOpen) {

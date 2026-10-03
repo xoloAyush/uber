@@ -33,6 +33,7 @@ const UserProtectWrapper = ({ children }) => {
             }
         })
             .then((response) => {
+
                 setUser(response.data.user);
                 setLoading(false);
             })

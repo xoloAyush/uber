@@ -6,6 +6,10 @@ import { useRef, useState } from 'react';
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import ConfirmRidePopUp from '../components/ConfirmRidePopUp';
+import { useContext } from "react";
+import SocketContext from '../context/socketContext'
+import CaptainContext from '../context/captainContext'
+import { useEffect } from "react"
 
 const CaptainHome = () => {
 
@@ -31,6 +35,7 @@ const CaptainHome = () => {
 
     const ridePopupRef = useRef(null)
     const confirmRidePopUpRef = useRef(null)
+    const [ride, setRide] = useState(null)
 
     useGSAP(() => {
         if (ridePopup) {
@@ -71,6 +76,52 @@ const CaptainHome = () => {
         }
     }, [confirmRidePopUp])
 
+    const { sendMessage, receiveMessage } = useContext(SocketContext)
+    const { captain } = useContext(CaptainContext)
+    const { socket } = useContext(SocketContext)
+
+    console.log(captain)
+
+    useEffect(() => {
+        if (!captain) return;
+
+        sendMessage("join", {
+            userId: captain,
+            userType: "captain"
+        });
+
+        const updateLocation = () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const ltd = position.coords.latitude;
+                    const lng = position.coords.longitude;
+
+                    console.log({ userId: captain, ltd, lng })
+
+                    sendMessage("update-location-captain", {
+                        userId: captain,
+                        location: {
+                            ltd: ltd,
+                            lng: lng
+                        }
+                    });
+                });
+            }
+        }
+
+        const locationInterval = setInterval(updateLocation, 10000)
+        updateLocation()
+
+        // return () => clearInterval(locationInterval)
+    }, []);
+
+    receiveMessage('new-ride', (data) => {
+
+        console.log("New ride received:", data);
+        setRide(data)    
+        setRidePopup(true)
+
+    })
 
     return (
         <div className='riding w-full h-screen flex flex-col md:flex-row-reverse relative overflow-y-auto'>
@@ -115,7 +166,13 @@ const CaptainHome = () => {
     "
                     ref={ridePopupRef}
                 >
-                    <RidePopup ridePopup={ridePopup} setRidePopup={setRidePopup} setConfirmRidePopUp={setConfirmRidePopUp} />
+                    {ride && (
+    <RidePopup
+        ride={ride}
+        setRidePopup={setRidePopup}
+        setConfirmRidePopUp={setConfirmRidePopUp}
+    />
+)}
                 </div>
 
                 <div

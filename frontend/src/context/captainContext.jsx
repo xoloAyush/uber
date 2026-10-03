@@ -4,9 +4,9 @@ const CaptainContext = createContext();
 
 export function CaptainProvider({ children }) {
 
-    const [ captain, setCaptain ] = useState(null);
-    const [ isLoading, setIsLoading ] = useState(false);
-    const [ error, setError ] = useState(null);
+    const [captain, setCaptain] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
 
     const updateCaptain = (captainData) => {
         setCaptain(captainData);
@@ -21,6 +21,8 @@ export function CaptainProvider({ children }) {
         setError,
         updateCaptain
     };
+
+    console.log(value)
 
     return (
         <CaptainContext.Provider value={value}>

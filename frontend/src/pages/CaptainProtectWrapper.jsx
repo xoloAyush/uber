@@ -33,6 +33,7 @@ const CaptainProtectWrapper = ({ children }) => {
             }
         })
             .then((response) => {
+
                 setCaptain(response.data.captain);
                 setLoading(false);
             })

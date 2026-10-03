@@ -1,6 +1,10 @@
 import rideService from "../services/ride.service.js";
 import { validationResult } from "express-validator";
-
+import {
+    getAddressCoordinate,
+    getCaptainsInTheRadius
+} from "../services/maps.service.js";import rideModel from "../models/ride.model.js";
+import { sendMessageToSocketId } from "../socket.js";
 
 export const createRide = async (req, res) => {
 
@@ -18,6 +22,25 @@ export const createRide = async (req, res) => {
     try {
 
         const ride = await rideService.createRide({ user: req.user, pickup, destination, vehicleType })
+
+        const pickupCoordinates = await     getAddressCoordinate(pickup);
+
+        console.log("Pickup coordinates:", pickupCoordinates);
+
+        const captainsInRadius = await getCaptainsInTheRadius(pickupCoordinates.latitude, pickupCoordinates.longitude, 2);
+
+        ride.otp= ''
+
+         const rideWithUser = await rideModel.findOne({ _id: ride._id }).populate('user');
+
+        captainsInRadius.map(captain => {
+
+            sendMessageToSocketId(captain.socketId, {
+                event: 'new-ride',
+                data: rideWithUser
+            })
+
+        })
 
         return res.status(201).json({
             success: true,

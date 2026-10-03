@@ -80,7 +80,6 @@ const captainSchema = new mongoose.Schema({
     }
 });
 
-
 // Static method
 captainSchema.statics.generateHashPassword = async function (password) {
     return await bcrypt.hash(password, 10);

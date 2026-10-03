@@ -21,7 +21,6 @@ const App = () => {
 
   const { captain, setCaptain } = React.useContext(CaptainContext);
 
-
   console.log(user)
   console.log(captain)
 
