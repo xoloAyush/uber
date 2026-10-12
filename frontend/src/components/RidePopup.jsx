@@ -3,7 +3,8 @@ import React from "react";
 const RidePopup = ({
     ride,
     setRidePopup,
-    setConfirmRidePopUp
+    setConfirmRidePopUp,
+    confirmRide
 }) => {
 
     // Don't render anything if ride data hasn't arrived
@@ -121,8 +122,8 @@ const RidePopup = ({
                     onClick={() => {
                         console.log("Ride accepted", ride);
 
-                        setRidePopup(false);
                         setConfirmRidePopUp(true);
+                        confirmRide()
                     }}
                     className="
                         w-full

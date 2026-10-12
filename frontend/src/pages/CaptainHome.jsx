@@ -10,6 +10,8 @@ import { useContext } from "react";
 import SocketContext from '../context/socketContext'
 import CaptainContext from '../context/captainContext'
 import { useEffect } from "react"
+import axios from 'axios';
+import LiveTracking from '../components/LiveTracking';
 
 const CaptainHome = () => {
 
@@ -82,51 +84,117 @@ const CaptainHome = () => {
 
     console.log(captain)
 
-    useEffect(() => {
-        if (!captain) return;
+   useEffect(() => {
+    if (!captain) return;
 
-        sendMessage("join", {
-            userId: captain,
-            userType: "captain"
-        });
+    console.log("Captain joining socket:", captain);
 
-        const updateLocation = () => {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    const ltd = position.coords.latitude;
-                    const lng = position.coords.longitude;
+    sendMessage("join", {
+        userId: captain,
+        userType: "captain"
+    });
 
-                    console.log({ userId: captain, ltd, lng })
+    const updateLocation = () => {
 
-                    sendMessage("update-location-captain", {
-                        userId: captain,
-                        location: {
-                            ltd: ltd,
-                            lng: lng
-                        }
-                    });
-                });
-            }
+        if (!navigator.geolocation) {
+            console.log("Geolocation is not supported");
+            return;
         }
 
-        const locationInterval = setInterval(updateLocation, 10000)
-        updateLocation()
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
 
-        // return () => clearInterval(locationInterval)
-    }, []);
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
 
-    receiveMessage('new-ride', (data) => {
+                console.log("Captain location:", {
+                    userId: captain,
+                    lat,
+                    lng
+                });
 
-        console.log("New ride received:", data);
-        setRide(data)    
-        setRidePopup(true)
+                sendMessage("update-location-captain", {
+                    userId: captain,
+                    location: {
+                        ltd: lat,
+                        lng: lng
+                    }
+                });
+            },
+            (error) => {
+                console.error(
+                    "Geolocation error:",
+                    error.message
+                );
+            }
+        );
+    };
 
-    })
+    updateLocation();
+
+    const locationInterval = setInterval(
+        updateLocation,
+        10000
+    );
+
+    return () => {
+        clearInterval(locationInterval);
+    };
+
+}, [captain]);
+
+    useEffect(() => {
+
+    receiveMessage("new-ride", (data) => {
+
+        console.log("🔥 NEW RIDE RECEIVED:", data);
+
+        setRide(data);
+        setRidePopup(true);
+
+    });
+
+}, []);
+
+    async function confirmRide() {
+    try {
+        const response = await axios.post(
+            `${import.meta.env.VITE_BASE_URL}/rides/confirm`,
+            {
+                rideId: ride._id,
+                captain: captain
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${localStorage.getItem("token")}`
+                }
+            }
+        );
+
+        console.log("🔥 CONFIRMED RIDE:", response.data);
+
+        // Replace old pending ride with confirmed ride
+        setRide(response.data);
+
+        // Close request popup
+        setRidePopup(false);
+
+        // Open OTP popup
+        setConfirmRidePopUp(true);
+
+    } catch (error) {
+        console.error(
+            "❌ Confirm ride error:",
+            error.response?.data || error
+        );
+    }
+}
 
     return (
         <div className='riding w-full h-screen flex flex-col md:flex-row-reverse relative overflow-y-auto'>
             <div className='w-full  h-1/2 md:h-screen'>
-                <img src="/map01.png" alt="map" className='w-full h-full object-cover' />
+                <LiveTracking />
 
             </div>
 
@@ -171,6 +239,8 @@ const CaptainHome = () => {
         ride={ride}
         setRidePopup={setRidePopup}
         setConfirmRidePopUp={setConfirmRidePopUp}
+
+        confirmRide={confirmRide}
     />
 )}
                 </div>
@@ -190,12 +260,16 @@ const CaptainHome = () => {
         md:rounded-2xl
         p-4 
         z-20  h-screen
+        
        
     "
                     ref={confirmRidePopUpRef}
                 >
-                    <ConfirmRidePopUp confirmRidePopUp={confirmRidePopUp} setConfirmRidePopUp={setConfirmRidePopUp}
-                        setRidePopup={setRidePopup} />
+                    <ConfirmRidePopUp 
+                    ride={ride}
+                    confirmRidePopUp={confirmRidePopUp} setConfirmRidePopUp={setConfirmRidePopUp}
+                        setRidePopup={setRidePopup} 
+                    />
                 </div>
             </div>
         </div >

@@ -1,7 +1,7 @@
 
 import { Link } from 'react-router-dom'
 import React from 'react'
-
+import LiveTracking from '../components/LiveTracking';
 
 const Riding = () => {
 
@@ -25,9 +25,8 @@ const Riding = () => {
 
     return (
         <div className='riding w-full h-screen flex flex-col md:flex-row-reverse relative'>
-            <div className='w-full  h-1/3'>
-                <img src="/map01.png" alt="map" className='w-full h-full object-cover' />
-
+            <div className='w-full  h-screen'>
+            <LiveTracking />
             </div>
 
             <Link
@@ -37,7 +36,7 @@ const Riding = () => {
                 <i className="ri-home-4-line text-[20px]"></i>
             </Link>
 
-            <div className="w-full p-4">
+            <div className="md:w-1/2 w-full p-4">
 
                 {/* Header */}
                 <div className="flex items-center justify-between">

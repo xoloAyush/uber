@@ -122,7 +122,7 @@ export async function loginUser(req, res, next) {
 export async function getProfile(req, res, next) {
     try {
 
-        return res.status(200).json({ user: req.user._id })
+        return res.status(200).json({ user: req.user })
 
     } catch (error) {
         res.status(500).json({

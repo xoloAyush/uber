@@ -1,109 +1,82 @@
-import React from 'react'
-import { Link } from 'react-router-dom'
-import { useRef, useState } from 'react';
+
+import React, { useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import FinishRide from './FinishRide';
+
+import FinishRide from "./FinishRide";
+import LiveTracking from "../components/LiveTracking";
 
 const CaptainRiding = () => {
+  const location = useLocation();
+  const ride = location.state?.ride;
 
-    const [finishRide, SetfinishRide] = useState(false);
-    const finishRideRef = useRef(null);
+  const [finishRide, setFinishRide] = useState(false);
+  const finishRideRef = useRef(null);
 
-    useGSAP(() => {
-        if (finishRide) {
-            gsap.to(finishRideRef.current, {
-                y: '0%',
-                duration: 0.5,
-                ease: "power2.out",
-                // opacity: 0
-            })
-        }
-        else {
-            gsap.to(finishRideRef.current, {
-                y: '100%',
-                duration: 0.5,
-                ease: "power2.out",
-                // opacity: 0
-            })
-        }
-    }, [finishRide])
+  useGSAP(() => {
+    if (!finishRideRef.current) return;
 
-    return (
-        <div className='h-screen relative md:flex flex-row-reverse'>
+    gsap.to(finishRideRef.current, {
+      y: finishRide ? "0%" : "100%",
+      duration: 0.5,
+      ease: "power2.out",
+    });
+  }, [finishRide]);
 
-            {/* Header */}
-            <div className='fixed p-6 top-0 flex items-center justify-between w-screen'>
+  return (
+    <div className="relative flex h-screen w-full flex-col overflow-hidden md:flex-row-reverse">
 
-                <img className='w-10 h-10 ' src='https://tb-static.uber.com/prod/udam-assets/e24f1914-1e23-4896-ad77-22e88c37c2f9.svg' alt="" />
+      {/* Header */}
+      <header className="absolute left-0 right-0 top-0 z-30 flex items-center justify-between p-6 pointer-events-none">
+        <img
+          className="h-10 w-10"
+          src="https://tb-static.uber.com/prod/udam-assets/e24f1914-1e23-4896-ad77-22e88c37c2f9.svg"
+          alt="Uber"
+        />
 
-                <Link
-                    to='/captain-home'
-                    className='h-10 w-10 bg-white flex items-center justify-center rounded-full'
-                >
-                    <i className='text-lg font-medium ri-logout-box-r-line'></i>
-                </Link>
+        <Link
+          to="/captain-home"
+          className="pointer-events-auto flex h-10 w-10 items-center justify-center rounded-full bg-white shadow"
+          aria-label="Return to captain home"
+        >
+          <i className="ri-logout-box-r-line text-lg font-medium" />
+        </Link>
+      </header>
 
-            </div>
+      {/* Map — RIGHT */}
+      <main className="relative h-[65vh] min-h-0 w-full md:h-full md:flex-1">
+        <LiveTracking />
+      </main>
 
+      {/* Ride controls — LEFT */}
+      <section className="relative z-10 flex min-h-0 flex-1 flex-col justify-center gap-5 overflow-y-auto rounded-t-2xl bg-yellow-400 p-6 md:h-full md:w-[380px] md:flex-none md:rounded-none md:bg-gray-200">
 
-            {/* Map */}
-            <div className='h-4/5  md:h-full'>
+        <h4 className="text-xl font-semibold">
+          4 KM away
+        </h4>
 
-                <img
-                    className='h-full w-full object-cover'
-                    src='map01.png'
-                    alt="map"
-                />
+        <button
+          onClick={() => setFinishRide(true)}
+          className="cursor-pointer rounded-lg bg-green-600 px-10 py-3 font-semibold text-white"
+        >
+          Complete Ride
+        </button>
 
-            </div>
-
-
-            {/* Bottom Section */}
-            <div className='h-1/5 md:w-[54%] md:h-full md:flex-col p-6 flex items-center justify-between md:justify-center relative md:bg-gray-200 bg-yellow-400 pt-10'>
-
-                <h5
-                    className='p-1 text-center w-[90%] absolute top-0'
-                    onClick={() => {
-                    }}
-                >
-                    <i className='text-3xl text-gray-800 ri-arrow-up-wide-line'></i>
-                </h5>
-
-                <h4 className='text-xl font-semibold mb-5'>
-                    4 KM away
-                </h4>
-
-                <button onClick={() => SetfinishRide(true)} className='bg-green-600 text-white font-semibold p-3 px-10 rounded-lg cursor-pointer'>
-                    Complete Ride
-                </button>
-
-                <div
-                    className="
-        fixed
-        bottom-0
-        left-0
-        w-full
-        
-        md:w-[33%]
-        
-        overflow-y-auto
-        bg-gray-100
-        rounded-t-2xl
-        md:rounded-2xl
-        p-4 
-        z-20 
-       
-    "
-                    ref={finishRideRef}
-                >
-                    <FinishRide finishRide={finishRide} setFinishRide={SetfinishRide} />
-                </div>
-
-            </div>
-
+        {/* Finish ride panel — LEFT */}
+        <div
+          ref={finishRideRef}
+          className="fixed bottom-0 left-0 z-40 max-h-[80vh] w-full translate-y-full overflow-y-auto rounded-t-2xl bg-gray-100 p-4 shadow-xl md:right-auto md:w-[380px] md:rounded-t-2xl"
+        >
+          <FinishRide
+            ride={ride}
+            finishRide={finishRide}
+            setFinishRide={setFinishRide}
+          />
         </div>
-    )
-}
+      </section>
+    </div>
+  );
+};
 
-export default CaptainRiding
+export default CaptainRiding;

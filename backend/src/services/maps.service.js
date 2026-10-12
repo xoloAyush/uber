@@ -22,7 +22,7 @@ export const getAddressCoordinate = async (address) => {
             }
         });
 
-        console.log("Google Maps response:", response.data);
+        // console.log("Google Maps response:", response.data);
 
         if (response.data.status !== "OK") {
             throw new Error(
@@ -105,7 +105,7 @@ export const getAutoCompleteSuggestion = async (input) => {
             }
         });
 
-        console.log("Places response:", response.data);
+        // console.log("Places response:", response.data);
 
         if (response.data.status === "OK") {
             return response.data.predictions;

@@ -1,8 +1,8 @@
 import express from 'express';
 import { body, query } from "express-validator"
-import { authUser } from '../middlewares/middleware.user.js';
+import { authUser, authCaptain } from '../middlewares/middleware.user.js';
 
-import { createRide, getFare } from '../controllers/ride.controller.js';
+import { createRide, getFare, confirmRide, startRide, endRide } from '../controllers/ride.controller.js';
 
 const router = express.Router();
 
@@ -24,6 +24,36 @@ router.get('/get-fare',
     query('destination').isString().isLength({ min: 3 }).withMessage('Invalid destination address'),
 
     getFare
+)
+
+router.post('/confirm',
+    authCaptain,
+    body('rideId').isMongoId().withMessage('Invalid ride ID'),
+    confirmRide
+)
+
+router.get(
+    '/start-ride',
+    (req, res, next) => {
+        console.log("🔥🔥 START-RIDE ROUTE HIT 🔥🔥");
+        console.log("QUERY:", req.query);
+        next();
+    },
+    authCaptain,
+    query('rideId')
+        .isMongoId()
+        .withMessage('Invalid ride id'),
+    query('otp')
+        .isString()
+        .isLength({ min: 6, max: 6 })
+        .withMessage('Invalid OTP'),
+    startRide
+);
+
+router.post('/end-ride',
+    authCaptain,
+    body('rideId').isMongoId().withMessage('Invalid ride id'),
+    endRide
 )
 
 export default router;

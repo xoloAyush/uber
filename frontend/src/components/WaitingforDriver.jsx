@@ -1,144 +1,186 @@
-import React from "react";
-import { vehicles } from "../data/vehicles";
-
+import React, { useEffect, useRef, useState } from "react";
+import LocationText from "./LocationText ";
 
 const WaitingforDriver = (props) => {
 
-    const vehicleData = {
-        id: 1,
-        name: "Vehicle type",
-        image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQHCOeEInGLbQIQ3RimySDEiVr6eLHsEciqYPVv6KcRMYv9Q_SG",
-        price: "₹250",
-        passengers: 4,
-        time: "5 mins",
-    };
+    const ride = props.ride;
+    const captain = ride?.captain;
 
-    const driverData = {
-        name: "Saini",
-        image: "https://plus.unsplash.com/premium_photo-1689977927774-401b12d137d6?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fG1hbnxlbnwwfHwwfHx8MA%3D%3D",
-        rating: 4.9,
-        plate_number: "DL 1C AB 1234",
-        model_name: "Maruti Suzuki Baleno",
-    }
+    const [openLocation, setOpenLocation] = useState(null);
 
-    const handleVehicleClick = (e) => {
-        const vehicle = e.target.closest("[data-vehicle-id]");
+    const pickupRef = useRef(null);
+    const destinationRef = useRef(null);
 
-        if (!vehicle) return;
-        // console.log(vehicle)
-        // console.log(vehicle.dataset)
 
-        const vehicleId = Number(vehicle.dataset.vehicleId);
+    // Close tooltip when clicking outside
+    useEffect(() => {
 
-        const selectedVehicle = vehicles.find(
-            (vehicle) => vehicle.id === vehicleId
-        );
+        const handleOutsideClick = (event) => {
 
-    };
+            const clickedPickup =
+                pickupRef.current?.contains(event.target);
+
+            const clickedDestination =
+                destinationRef.current?.contains(event.target);
+
+            // Clicked somewhere outside both locations
+            if (!clickedPickup && !clickedDestination) {
+                setOpenLocation(null);
+            }
+        };
+
+        document.addEventListener("click", handleOutsideClick);
+
+        return () => {
+            document.removeEventListener(
+                "click",
+                handleOutsideClick
+            );
+        };
+
+    }, []);
+
 
     return (
-
         <div className="w-full">
 
             {/* Header */}
             <div className="flex items-center justify-between mb-5">
+
                 <h2 className="text-2xl font-bold">
                     Waiting for Driver
                 </h2>
 
                 <button
                     onClick={() => {
-                        props.setWaitingForDriver(false)
-                        // props.setVehicleFound(true)
+                        props.setWaitingForDriver(false);
                     }}
                     className="text-3xl text-gray-500 hover:text-black cursor-pointer"
                 >
                     <i className="ri-arrow-down-wide-fill"></i>
                 </button>
+
             </div>
+
 
             {/* Vehicle Information */}
             <div className="flex flex-col gap-4 bg-gray-100 p-4">
 
-                {/* Vehicle Image */}
+                {/* Driver + Vehicle */}
                 <div className="w-full flex items-center justify-between px-4 py-3">
-                    {/* Driver */}
+
+                    {/* Driver Image */}
                     <div className="w-19 h-19 overflow-hidden rounded-full flex-shrink-0">
+
                         <img
-                            src={driverData.image}
-                            alt={driverData.name}
+                            src="/driver.jfif"
+                            alt={captain?.fullname?.firstname || "Driver"}
                             className="w-full h-full object-cover"
                         />
+
                     </div>
 
 
-                    {/* Vehicle Details */}
+                    {/* Driver Details */}
                     <div className="flex flex-col items-end justify-center">
+
                         <h3 className="text-xl font-medium">
-                            {driverData.name}
-                        </h3>
-
-                        <h3 className="text-2xl font-bold">
-                            {driverData.plate_number}
-                        </h3>
-
-                        <p className="text-sm ">
-                            {driverData.model_name}
-                        </p>
-
-                        <div className="flex items-center gap-1">
-                            <span className="text-yellow-500">★</span>
-                            <span className="text-sm font-medium">4.9</span>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Vehicle Details */}
-                <div className="flex-1">
-
-                    <div className="flex items-center justify-between ">
-                        <h3 className="text-xl font-semibold">
-                            {vehicleData.name}
-
+                            {captain?.fullname?.firstname}{" "}
+                            {captain?.fullname?.lastname}
                         </h3>
 
                         <h3 className="text-xl font-bold">
-                            {vehicleData.price}
+                            {captain?.vehicle?.plate}
                         </h3>
+
+                        <p className="text-sm capitalize">
+                            {captain?.vehicle?.model}
+                        </p>
+
+                        <p className="text-lg font-medium capitalize">
+                            OTP: {ride?.otp}
+                        </p>
+
+                        <div className="flex items-center gap-1">
+                            <span className="text-yellow-500">
+                                ★
+                            </span>
+
+                            <span className="text-sm font-medium">
+                                4.9
+                            </span>
+                        </div>
+
                     </div>
 
+                </div>
+
+
+                {/* Ride Details */}
+                <div className="flex-1">
+
+                    <div className="flex items-center justify-between">
+
+                        <h3 className="text-xl font-semibold capitalize">
+                            {captain?.vehicle?.vehicleType}
+                        </h3>
+
+                        <h3 className="text-xl font-bold">
+                            ₹{ride?.fare}
+                        </h3>
+
+                    </div>
+
+
+                    {/* Capacity */}
                     <p className="text-sm text-gray-600 mt-1">
                         <i className="ri-user-3-fill"></i>{" "}
-                        {vehicleData.passengers} passengers
+                        {captain?.vehicle?.capacity} passengers
                     </p>
 
+
+                    {/* Vehicle Color */}
                     <p className="text-sm text-gray-600 mt-1">
-                        <i className="ri-time-line"></i> {vehicleData.time}
+                        <i className="ri-car-line"></i>{" "}
+                        {captain?.vehicle?.color}
                     </p>
 
-                    <p className="text-sm text-gray-600 mt-1">
-                        <i className="ri-map-pin-line"></i> {props.location}
-                    </p>
+
+                    {/* Pickup */}
+                    <LocationText
+                        ref={pickupRef}
+                        text={ride?.pickup}
+                        isOpen={openLocation === "pickup"}
+                        onToggle={() => {
+                            setOpenLocation(
+                                openLocation === "pickup"
+                                    ? null
+                                    : "pickup"
+                            );
+                        }}
+                    />
+
+
+                    {/* Destination */}
+                    <LocationText
+                        ref={destinationRef}
+                        text={ride?.destination}
+                        isOpen={openLocation === "destination"}
+                        onToggle={() => {
+                            setOpenLocation(
+                                openLocation === "destination"
+                                    ? null
+                                    : "destination"
+                            );
+                        }}
+                    />
+
                 </div>
+
             </div>
 
-            {/* <button
-                onClick={() => {
-                    console.log("Ride confirmed:", vehicleData);
-
-                    // Close confirm panel
-                    props.setConfirmRidePanel(false);
-                    props.setVehicleFound(true);
-                }}
-                className="w-full bg-green-600 hover:bg-green-700
-                           text-white font-bold py-3 rounded-xl
-                           mt-4 cursor-pointer transition"
-            >
-                Confirm Ride
-            </button> */}
-
         </div>
-    )
+    );
 };
 
 export default WaitingforDriver;

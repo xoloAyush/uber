@@ -1,27 +1,57 @@
-import { Link } from "react-router-dom";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 const FinishRide = (props) => {
 
-    const rideData = {
-        rider: {
-            name: "Harsh Patel",
-            image: "https://images.unsplash.com/photo-1583692331501-5339b76cbf1e?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTl8fG1hbnxlbnwwfHwwfHx8MA%3D%3D",
-            distance: "2.2 KM",
-        },
+    const navigate = useNavigate();
 
-        pickup: {
-            address: "562/11-A",
-            location: "Kankariya Talab, Bhopal",
-        },
+    const ride = props.ride; 
+    console.log(ride)
 
-        destination: {
-            address: "562/11-A",
-            location: "Kankariya Talab, Bhopal",
-        },
+    const finishRide = async () => {
+  try {
+    if (!ride?._id) {
+      console.error("Ride data is missing");
+      return;
+    }
 
-        fare: "₹193.20",
-        paymentMethod: "Cash",
-    };
+    const token = localStorage.getItem("token");
+
+    console.log("========== FINISH RIDE ==========");
+    console.log("Ride ID:", ride._id);
+    console.log("Ride status:", ride.status);
+    console.log("Token exists:", !!token);
+
+    if (!token) {
+      console.error("Captain token not found. Please log in again.");
+      return;
+    }
+
+    const response = await axios.post(
+      `${import.meta.env.VITE_BASE_URL}/rides/end-ride`,
+      {
+        rideId: ride._id,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }, // config
+      }
+    );
+
+    console.log("✅ END RIDE RESPONSE:", response.data);
+
+    if (response.status === 200) {
+      props.setFinishRide(false);
+      navigate("/captain-home");
+    }
+  } catch (error) {
+    console.error(
+      "❌ END RIDE ERROR:",
+      error.response?.data || error.message
+    );
+  }
+};
 
 
     return (
@@ -34,8 +64,8 @@ const FinishRide = (props) => {
                     Finish this Ride!
                 </h2>
 
-                {/* Close */}
                 <button
+                    type="button"
                     onClick={() => props.setFinishRide(false)}
                     className="text-gray-400 hover:text-black text-2xl cursor-pointer"
                 >
@@ -52,23 +82,29 @@ const FinishRide = (props) => {
                 <div className="flex items-center gap-3">
 
                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white">
+
                         <img
-                            src={rideData.rider.image}
-                            alt={rideData.rider.name}
+                            src={
+                                ride?.user?.avatar ||
+                                "https://via.placeholder.com/150"
+                            }
+                            alt="Rider"
                             className="w-full h-full object-cover"
                         />
+
                     </div>
 
-                    <h3 className="font-semibold ">
-                        {rideData.rider.name}
+                    <h3 className="font-semibold">
+                        {ride?.user?.fullname?.firstname}{" "}
+                        {ride?.user?.fullname?.lastname}
                     </h3>
 
                 </div>
 
 
-                {/* Distance */}
-                <p className="font-bold ">
-                    {rideData.rider.distance}
+                {/* Vehicle */}
+                <p className="font-bold">
+                    {ride?.vehicleType?.toUpperCase()}
                 </p>
 
             </div>
@@ -77,24 +113,31 @@ const FinishRide = (props) => {
             {/* Ride Details */}
             <div className="px-4">
 
-
                 {/* Pickup */}
                 <div className="flex gap-4 py-4 border-b">
 
-                    {/* Icon */}
                     <div className="flex justify-center pt-1">
                         <i className="ri-map-pin-user-fill text-xl text-gray-700"></i>
                     </div>
 
-                    {/* Address */}
-                    <div>
+                    <div className="min-w-0 flex-1">
+
                         <h3 className="font-semibold text-lg">
-                            {rideData.pickup.address}
+                            Pickup
                         </h3>
 
-                        <p className="text-sm text-gray-500">
-                            {rideData.pickup.location}
+                        <p
+                            className="text-sm text-gray-500 break-words"
+                            title={ride?.pickup || ""}
+                        >
+                            {ride?.pickup
+                                ? ride.pickup.length > 60
+                                    ? `${ride.pickup.slice(0, 60)}...`
+                                    : ride.pickup
+                                : "Pickup location unavailable"
+                            }
                         </p>
+
                     </div>
 
                 </div>
@@ -103,20 +146,28 @@ const FinishRide = (props) => {
                 {/* Destination */}
                 <div className="flex gap-4 py-4 border-b">
 
-                    {/* Icon */}
                     <div className="flex justify-center pt-1">
                         <i className="ri-map-pin-fill text-xl text-black"></i>
                     </div>
 
-                    {/* Address */}
-                    <div>
+                    <div className="min-w-0 flex-1">
+
                         <h3 className="font-semibold text-lg">
-                            {rideData.destination.address}
+                            Destination
                         </h3>
 
-                        <p className="text-sm text-gray-500">
-                            {rideData.destination.location}
+                        <p
+                            className="text-sm text-gray-500 break-words"
+                            title={ride?.destination || ""}
+                        >
+                            {ride?.destination
+                                ? ride.destination.length > 60
+                                    ? `${ride.destination.slice(0, 60)}...`
+                                    : ride.destination
+                                : "Destination unavailable"
+                            }
                         </p>
+
                     </div>
 
                 </div>
@@ -130,23 +181,26 @@ const FinishRide = (props) => {
                     </div>
 
                     <div>
+
                         <h3 className="font-semibold text-lg">
-                            {rideData.fare}
+                            ₹{ride?.fare}
                         </h3>
 
                         <p className="text-sm text-gray-500">
-                            {rideData.paymentMethod}
+                            Cash
                         </p>
+
                     </div>
 
                 </div>
 
 
-                {/* Confirm */}
-                <Link
-                    to="/captain-home"
-
-                    className=" flex items-center justify-center
+                {/* Finish Ride */}
+                <button
+                    type="button"
+                    onClick={finishRide}
+                    className="
+                        flex items-center justify-center
                         w-full
                         bg-green-600
                         hover:bg-green-700
@@ -160,9 +214,11 @@ const FinishRide = (props) => {
                     "
                 >
                     Finish Ride
-                </Link>
+                </button>
 
-                <p className="text-center mt-5 text-xs text-red-500">Click on finish ride button if you have completed the payment</p>
+                <p className="text-center mt-5 text-xs text-red-500">
+                    Click on finish ride button if you have completed the payment
+                </p>
 
             </div>
 

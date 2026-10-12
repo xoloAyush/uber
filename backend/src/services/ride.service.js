@@ -100,8 +100,111 @@ const createRide = async ({
     return ride;
 };
 
+const confirmRide = async ({ rideId, captain }) => {
+
+    if (!rideId || !captain) {
+        throw new Error("Ride ID and Captain are required");
+    }
+
+    await rideModel.findByIdAndUpdate(rideId, {
+        captain: captain,
+        status: "confirmed"
+    });
+
+    const ride = await rideModel.findById(rideId).populate("user").populate("captain").select('+otp');
+
+    if(!ride) {
+        throw new Error("Ride not found");
+    }
+
+    return ride;
+
+}
+
+const startRide = async ({ rideId, otp, captain }) => {
+
+    if (!rideId || !otp || !captain) {
+        throw new Error("Ride ID, OTP and Captain ID are required");
+    }
+
+    console.log("========== START RIDE SERVICE ==========");
+    console.log("rideId:", rideId);
+    console.log("otp:", otp);
+    console.log("captain:", captain._id);
+
+    const ride = await rideModel
+        .findById(rideId)
+        .populate("user")
+        .populate("captain")
+        .select("+otp");
+
+    if (!ride) {
+        throw new Error("Ride is not found");
+    }
+
+    console.log("Current ride status:", ride.status);
+    console.log("Database OTP:", ride.otp);
+    console.log("Received OTP:", otp);
+
+    if (ride.status !== "confirmed") {
+        throw new Error("Ride is not confirmed");
+    }
+
+    if (ride.otp !== otp) {
+        throw new Error("Invalid OTP");
+    }
+
+    // Change the document itself
+    ride.status = "ongoing";
+
+    // Save the changed document
+    await ride.save();
+
+    console.log("✅ Ride started");
+    console.log("✅ New status:", ride.status);
+
+    return ride;
+};
+
+const endRide = async ({ rideId, captain }) => {
+
+    if (!rideId || !captain) {
+        throw new Error("Ride ID and Captain ID are required");
+    }
+
+    const ride = await rideModel
+        .findById(rideId)
+        .populate("user")
+        .populate("captain")
+        .select("+otp");
+
+    if (!ride) {
+        throw new Error("Ride is not found");
+    }
+
+    console.log("========== END RIDE SERVICE ==========");
+    console.log("Ride ID:", rideId);
+    console.log("Current status:", ride.status);
+    console.log("Captain:", captain._id);
+
+    if (ride.status !== "ongoing") {
+        throw new Error("Ride is not ongoing");
+    }
+
+    ride.status = "completed";
+
+    await ride.save();
+
+    console.log("✅ Ride completed");
+    console.log("✅ New status:", ride.status);
+
+    return ride;
+};
 
 export default {
     getFare,
-    createRide
+    createRide,
+    confirmRide,
+    startRide,
+    endRide
 };

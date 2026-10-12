@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import 'remixicon/fonts/remixicon.css'
@@ -11,9 +12,11 @@ import axios from 'axios'
 import SocketContext from "../context/socketContext";
 import { useContext } from "react";
 import UserContext from "../context/userContext";
+import LiveTracking from '../components/LiveTracking.jsx'
 
 const Home = () => {
 
+    const navigate = useNavigate()
     const [pickup, setPickup] = useState('')
     const [destination, setDestination] = useState('')
     const [suggestions, setSuggestions] = useState([]);
@@ -29,6 +32,7 @@ const Home = () => {
 
     const [fare, setFare] = useState({})
     const [vehicleType, setVehicleType] = useState('')
+    const [ ride, setRide ] = useState(null)
 
     const panelRef = useRef(null)
     const panelCloseRef = useRef(null)
@@ -37,14 +41,71 @@ const Home = () => {
     const vehicleFoundRef = useRef(null)
     const waitingForDriverRef = useRef(null)
 
-    const { sendMessage, receiveMessage } = useContext(SocketContext)
+    const { sendMessage, receiveMessage, socket } = useContext(SocketContext)
     const { user } = useContext(UserContext)
 
     console.log(user)
 
     useEffect(() => {
-        sendMessage('join', { userId: user, userType: 'user' })
-    }, [user])
+    if (!socket || !user?._id) return;
+
+    const joinUser = () => {
+        console.log("User socket:", socket.id);
+
+        sendMessage("join", {
+            userId: user._id,
+            userType: "user"
+        });
+    };
+
+    if (socket.connected) {
+        joinUser();
+    }
+
+    socket.on("connect", joinUser);
+
+    return () => {
+        socket.off("connect", joinUser);
+    };
+}, [socket, user?._id]);
+
+    useEffect(() => {
+    if (!socket) return;
+
+    const handleRideConfirmed = (ride) => {
+        console.log("🔥 Ride confirmed received:", ride);
+
+        setVehicleFound(false);
+        setWaitingForDriver(true);
+        setRide(ride);
+    };
+
+    socket.on("ride-confirmed", handleRideConfirmed);
+
+    return () => {
+        socket.off("ride-confirmed", handleRideConfirmed);
+    };
+}, [socket]);
+
+useEffect(() => {
+    if (!socket) return;
+
+    const handleRideStarted = (ride) => {
+        console.log("🔥 Ride started:", ride);
+
+        setWaitingForDriver(false);
+
+        navigate('/riding', {
+            state: { ride }
+        });
+    };
+
+    socket.on("ride-started", handleRideStarted);
+
+    return () => {
+        socket.off("ride-started", handleRideStarted);
+    };
+}, [socket]);
 
     useGSAP(() => {
         if (panelOpen) {
@@ -230,7 +291,7 @@ const Home = () => {
         <div className="w-full h-screen flex md:flex-col relative overflow-y-hidden">
 
             <div className="h-full w-full">
-                <img src="/map01.png" alt="map" className="h-full w-full object-cover" />
+                <LiveTracking />
             </div>
 
             <div className="absolute top-0 h-screen rounded-t-xl md:w-[35vw] w-full
@@ -349,20 +410,20 @@ const Home = () => {
                     fare={fare}
                     vehicleType={vehicleType}
                     confirmRideData={confirmRideData}
+                    createRide={createRide}
                 />
             </div>
 
             <div
-                ref={waitingForDriverRef}
-                className="fixed w-full z-20 bg-white px-3 py-6 bottom-0 md:w-[35vw]"
-            >
+    ref={waitingForDriverRef}
+    className="fixed w-full z-20 bg-white px-3 py-6 bottom-0 md:w-[35vw] "
+>
                 <WaitingforDriver
                     setVehicleFound={setVehicleFound}
 
                     setVehiclePanelOpen={setVehiclePanelOpen}
                     setWaitingForDriver={setWaitingForDriver}
-
-
+                    ride={ride}
                 />
             </div>
 

@@ -22,18 +22,46 @@ export const initializeSocket = (server) => {
 
         console.log("New Client Connected", socket.id)
 
-        socket.on('join', async (data) => {
+        socket.on("join", async (data) => {
 
-            const { userId, userType } = data
+    const { userId, userType } = data;
 
-            if (userType == 'user') {
-                await user.findByIdAndUpdate(userId, { socketId: socket.id })
-            }
+    console.log("🔥 JOIN EVENT:", {
+        userId,
+        userType,
+        socketId: socket.id
+    });
 
-            if (userType == 'captain') {
-                await captain.findByIdAndUpdate(userId, { socketId: socket.id })
-            }
-        })
+    if (userType === "user") {
+
+        const updatedUser =
+            await user.findByIdAndUpdate(
+                userId,
+                { socketId: socket.id },
+                { new: true }
+            );
+
+        console.log(
+            "User socket saved:",
+            updatedUser?.socketId
+        );
+    }
+
+    if (userType === "captain") {
+
+        const updatedCaptain =
+            await captain.findByIdAndUpdate(
+                userId,
+                { socketId: socket.id },
+                { new: true }
+            );
+
+        console.log(
+            "Captain socket saved:",
+            updatedCaptain?.socketId
+        );
+    }
+});
 
         socket.on('update-location-captain', async (data) => {
 
@@ -63,14 +91,21 @@ export const initializeSocket = (server) => {
 
 export const sendMessageToSocketId = (socketId, messageObject) => {
 
-    console.log("Sending message to socketId:", socketId, "with event:", messageObject.event, "and data:", messageObject.data);
+    console.log("📤 Sending:", {
+        socketId,
+        event: messageObject.event
+    });
+
+    if (!io) {
+        console.log("❌ Socket.io not initialized");
+        return;
+    }
 
     if (io) {
-        io.to(socketId).emit(messageObject.event, messageObject.data)
-    }
-    else{
-        console.error("Socket.io is not initialized. Cannot send message.")
+        io.to(socketId).emit(messageObject.event, messageObject.data);
+    } else {
+        console.log('Socket.io not initialized.');
     }
 
-    return io;
+    console.log("✅ Event sent successfully");
 };

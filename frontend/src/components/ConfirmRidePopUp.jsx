@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link , useNavigate} from "react-router-dom";
+import axios from "axios";
 
 const ConfirmRidePopUp = (props) => {
 
@@ -24,14 +25,36 @@ const ConfirmRidePopUp = (props) => {
         paymentMethod: "Cash",
     };
 
-    const submitHandler = (e) => {
+    const [ otp, setOtp ] = useState('')
+    const navigate = useNavigate()
+
+    const submitHandler = async(e) => {
         e.preventDefault();
 
-        setOTP
-        console.log("Form submitted");
-    }
+        console.log("========== START RIDE ==========");
+console.log("Requested rideId:", props.ride);
+console.log("Requested OTP:", otp);
+console.log("Database rideId:", props.ride._id.toString());
+console.log("Database status:", props.ride.status);
+console.log("Database OTP:", props.ride.otp);
+console.log("================================");
 
-    const [otp, setOTP] = useState('')
+        const response = await axios.get(`${import.meta.env.VITE_BASE_URL}/rides/start-ride`, {
+            params: {
+                rideId: props.ride._id,
+                otp: otp
+            },
+            headers: {
+                Authorization: `Bearer ${localStorage.getItem('token')}`
+            }
+        })
+
+        if (response.status === 200) {
+            props.setRidePopup(false)
+            props.setConfirmRidePopUp(false)
+            navigate('/captain-riding', { state: { ride: props.ride } })
+        }
+    }
 
     return (
         <div className="w-full h-screen pb-4 rounded-md border border-gray-200">
@@ -69,7 +92,7 @@ const ConfirmRidePopUp = (props) => {
                     </div>
 
                     <h3 className="font-semibold ">
-                        {rideData.rider.name}
+                        {props.ride?.user?.fullname?.firstname + " " + props.ride?.user?.fullname?.lastname}
                     </h3>
 
                 </div>
@@ -88,47 +111,53 @@ const ConfirmRidePopUp = (props) => {
 
 
                 {/* Pickup */}
-                <div className="flex gap-4 py-4 border-b">
+                {/* Pickup */}
+<div className="flex gap-4 py-4 border-b">
+    <div className="flex justify-center pt-1">
+        <i className="ri-map-pin-user-fill text-xl text-gray-700"></i>
+    </div>
 
-                    {/* Icon */}
-                    <div className="flex justify-center pt-1">
-                        <i className="ri-map-pin-user-fill text-xl text-gray-700"></i>
-                    </div>
+    <div className="min-w-0 flex-1">
+        <h3 className="font-semibold text-lg">
+            Pickup
+        </h3>
 
-                    {/* Address */}
-                    <div>
-                        <h3 className="font-semibold text-lg">
-                            {rideData.pickup.address}
-                        </h3>
+        <p
+            className="text-sm text-gray-500 break-words"
+            title={props.ride?.pickup || ""}
+        >
+            {props.ride?.pickup
+                ? props.ride.pickup.length > 45
+                    ? `${props.ride.pickup.slice(0, 45)}...`
+                    : props.ride.pickup
+                : "Pickup location unavailable"}
+        </p>
+    </div>
+</div>
 
-                        <p className="text-sm text-gray-500">
-                            {rideData.pickup.location}
-                        </p>
-                    </div>
+{/* Destination */}
+<div className="flex gap-4 py-4 border-b">
+    <div className="flex justify-center pt-1">
+        <i className="ri-map-pin-fill text-xl text-black"></i>
+    </div>
 
-                </div>
+    <div className="min-w-0 flex-1">
+        <h3 className="font-semibold text-lg">
+            Destination
+        </h3>
 
-
-                {/* Destination */}
-                <div className="flex gap-4 py-4 border-b">
-
-                    {/* Icon */}
-                    <div className="flex justify-center pt-1">
-                        <i className="ri-map-pin-fill text-xl text-black"></i>
-                    </div>
-
-                    {/* Address */}
-                    <div>
-                        <h3 className="font-semibold text-lg">
-                            {rideData.destination.address}
-                        </h3>
-
-                        <p className="text-sm text-gray-500">
-                            {rideData.destination.location}
-                        </p>
-                    </div>
-
-                </div>
+        <p
+            className="text-sm text-gray-500 break-words"
+            title={props.ride?.destination || ""}
+        >
+            {props.ride?.destination
+                ? props.ride.destination.length > 45
+                    ? `${props.ride.destination.slice(0, 45)}...`
+                    : props.ride.destination
+                : "Destination unavailable"}
+        </p>
+    </div>
+</div>
 
 
                 {/* Fare */}
@@ -150,68 +179,18 @@ const ConfirmRidePopUp = (props) => {
 
                 </div>
 
-                <div className="mt-6 w-full">
+                <div className='mt-6 w-full'>
+                    <form onSubmit={submitHandler}>
+                        <input value={otp} onChange={(e) => setOtp(e.target.value)} type="text" className='bg-[#eee] px-6 py-4 font-mono text-lg rounded-lg w-full mt-3' placeholder='Enter OTP' />
 
-                    <form onSubmit={(e) => {
-                        submitHandler(e)
+                        <button className='w-full mt-5 text-lg flex justify-center bg-green-600 text-white font-semibold p-3 rounded-lg'>Confirm</button>
+                        <button onClick={() => {
+                            props.setConfirmRidePopupPanel(false)
+                            props.setRidePopupPanel(false)
 
+                        }} className='w-full mt-2 bg-red-600 text-lg text-white font-semibold p-3 rounded-lg'>Cancel</button>
 
-                    }}>
-                        <input type='text' placeholder="Enter OTP" className="p-3 rounded-md px-7  bg-gray-300 border-2 border-transparent w-full focus:border-yellow-500 focus:outline-none"
-
-                            value={otp}
-                            onChange={(e) => setOTP(e.target.value)}
-
-
-                        />
                     </form>
-
-                    {/* Confirm */}
-                    <Link to='/captain-riding'
-                        onClick={() => {
-                            console.log("Ride accepted");
-
-                            // Example:
-                            props.setRidePopup(false);
-                            // props.setRideAccepted(true);
-                        }}
-                        className="
-                    flex items-center justify-center
-                        w-full
-                        bg-green-600
-                        hover:bg-green-700
-                        text-white
-                        font-semibold
-                        py-3
-                        rounded-lg
-                        mt-4
-                        cursor-pointer
-                        transition
-                    "
-                    >
-                        Confirm
-                    </Link>
-
-                    <button
-                        onClick={() => {
-                            props.setConfirmRidePopUp(false);
-                        }}
-                        className="
-                        w-full
-                        border
-                        bg-red-500
-                        hover:bg-red-600
-                        text-white
-                        font-semibold
-                        py-3
-                        rounded-lg
-                        mt-2
-                        cursor-pointer
-                        transition
-                    "
-                    >
-                        Cancel
-                    </button>
                 </div>
 
             </div>

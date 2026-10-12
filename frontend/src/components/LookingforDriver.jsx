@@ -104,10 +104,7 @@ const LookingforDriver = (props) => {
 
             {/* Looking for Driver Button */}
             <button
-                onClick={(e) => {
-                    props.setVehicleFound(false),
-                        props.setWaitingForDriver(true)
-                }}
+               
                 className="w-full bg-green-600
                            text-white font-semibold
                            py-2.5 rounded-md

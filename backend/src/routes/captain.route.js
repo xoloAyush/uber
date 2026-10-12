@@ -1,7 +1,7 @@
 import { captainRegister, loginCaptain, getProfile, logout } from '../controllers/captain.controller.js';
 import express from 'express';
 import { body } from "express-validator"
-import { authUser } from '../middlewares/middleware.user.js';
+import { authCaptain } from '../middlewares/middleware.user.js';
 
 const router = express.Router();
 
@@ -30,8 +30,8 @@ router.post('/login', [
     body('password').trim().notEmpty().withMessage('Password is required').isLength({ min: 6, max: 80 }).withMessage('Password must be at least 6 characters long')
 ], loginCaptain)
 
-router.get('/profile',authUser, getProfile)
+router.get('/profile',authCaptain, getProfile)
 
-router.post('/logout', authUser, logout)
+router.post('/logout', authCaptain, logout)
 
 export default router;

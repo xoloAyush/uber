@@ -1,10 +1,10 @@
 import captain from '../models/captain.model.js'
 
 export const createCaptain = async ({
-    firstname, lastname, email, password, color, plate, capacity, vehicleType
+    firstname, lastname, email, password, color, plate, model, capacity, vehicleType
 }) => {
 
-    if (!firstname || !email || !password || !color || !plate || !capacity || !vehicleType) {
+    if (!firstname || !email || !password || !color || !plate || !model || !capacity || !vehicleType) {
         throw new Error("All fields are required")
     }
 
@@ -12,7 +12,7 @@ export const createCaptain = async ({
         fullname: { firstname, lastname },
         email,
         password,
-        vehicle: { color, plate, capacity, vehicleType }
+        vehicle: { color, plate, model, capacity, vehicleType }
     })
 
     return newCaptain
